@@ -392,7 +392,7 @@ function getSourceFileInfo(
 	return sourceFileInfo;
 }
 
-function sanitizeFileName(fileName: string): {
+export function sanitizeFileName(fileName: string): {
 	fileNameClean: string;
 	fileExtension: string;
 	language: string;
@@ -436,7 +436,7 @@ function sanitizeFileName(fileName: string): {
  * @returns {Partial<SourceFileInfo>} - An object that contains the original information plus the target path.
  * @throws {Error} - If a required property is missing in the sourceFileInfo object.
  */
-function getTargetPath(
+export function getTargetPath(
 	sourceFileInfo: Partial<SourceFileInfo>,
 	basePath: string
 ): Partial<SourceFileInfo> {
