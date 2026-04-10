@@ -6,6 +6,7 @@ import { config } from "config";
 import * as fs from "fs";
 import * as path from "path";
 import util from "util";
+import sharp from "sharp";
 
 ////////////////////////////////////////////////////////////////
 // MAIN
@@ -1024,60 +1025,37 @@ async function copyExcalidraw(originalFilePath: string, newFilePath: string) {
 	await copyFile(lightFilePath, newFilePath);
 }
 
-// TODO: Replace with sharp in Task 5
-// const gm = require("gm").subClass({ imageMagick: "7+" });
-const gm: any = null;
-
 async function resizeImage(
 	originalFilePath: string,
 	newFilePath: string,
 	size: string
 ): Promise<void> {
-	const widthOriginal: number = await getImageWidth(originalFilePath);
+	const image = sharp(originalFilePath);
+	const metadata = await image.metadata();
+	const originalWidth = metadata.width ?? 2500;
+
 	let width: number;
-	let height: string | number;
-	let auto = true;
+	let height: number | undefined;
 
 	if (size === "standard") {
-		width = Math.min(
-			widthOriginal,
-			parseInt(config.convertedImageMaxWidth)
-		);
-		height = ""; // auto height
+		width = Math.min(originalWidth, parseInt(config.convertedImageMaxWidth));
+		height = undefined;
 	} else {
 		const dimensions = size.split("x");
 		width = parseInt(dimensions[0]);
-		height = dimensions.length > 1 ? parseInt(dimensions[1]) : "";
-		if (height) {
-			auto = false;
-		}
+		height = dimensions.length > 1 ? parseInt(dimensions[1]) : undefined;
 	}
 
-	let imageProcess = gm(originalFilePath).coalesce();
+	const resized = height
+		? image.resize(width, height, { fit: "fill" })
+		: image.resize(width, undefined, { fit: "inside", withoutEnlargement: true });
 
-	if (auto) {
-		imageProcess = imageProcess.resize(width, height);
-	} else {
-		imageProcess = imageProcess.resize(width, height, "!");
-	}
-
-	imageProcess.write(newFilePath, function (err: Error) {
-		if (err) logger.error(err);
-	});
+	await resized.webp().toFile(newFilePath);
 }
 
-function getImageWidth(imagePath: string): Promise<number> {
-	return new Promise((resolve, reject) => {
-		//@ts-ignore
-		gm(imagePath).size((err: Error, size) => {
-			if (err) {
-				logger.error("Error getting image width: ", err);
-				reject(err);
-			} else {
-				resolve(size.width);
-			}
-		});
-	});
+async function getImageWidth(imagePath: string): Promise<number> {
+	const metadata = await sharp(imagePath).metadata();
+	return metadata.width ?? 2500;
 }
 
 async function getAssetsToProcess(
