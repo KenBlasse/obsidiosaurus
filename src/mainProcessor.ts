@@ -107,8 +107,6 @@ export default async function obsidiosaurusProcess(
 		new Notice(`💤 Nothing to process`);
 	}
 
-	augmentPathForMacOS();
-
 	// Find all assets that need to be processed and perform the conversion
 	const assetsToProcess = await getAssetsToProcess(assetJson, websitePath);
 	new Notice(`⚙ Processing ${assetsToProcess.length} Assets`);
@@ -129,34 +127,6 @@ export default async function obsidiosaurusProcess(
 
 	return true;
 }
-
-////////////////////////////////////////////////////////////////
-// UTILS
-////////////////////////////////////////////////////////////////
-
-/**
- * Augments the Obsidian PATH environment variable for macOS to include the Homebrew path if it's not already included.
- */
-function augmentPathForMacOS() {
-	const os = require("os");
-
-	if (config.debug) {
-		logger.info(`🗺️ Current Obsidian ENV PATH: ${process.env.PATH}`);
-	}
-
-	if (os.platform() === "darwin") {
-		// Add paths for homebrew on Apple Silicion and Intel
-		const homebrewPath = "/opt/homebrew/bin:/usr/local/bin/brew";
-		//@ts-ignore
-		if (!process.env.PATH.includes(homebrewPath)) {
-			process.env.PATH = homebrewPath + ":" + process.env.PATH;
-			if (config.debug) {
-				logger.info(`🗺️ New ENV PATH: ${process.env.PATH}`);
-			}
-		}
-	}
-}
-
 
 ////////////////////////////////////////////////////////////////
 // Markdown Conversion
