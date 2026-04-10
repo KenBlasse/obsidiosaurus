@@ -1,4 +1,4 @@
-import { sanitizeFileName } from '../src/mainProcessor';
+import { sanitizeFileName } from '../src/fileInfoBuilder';
 import { setSettings } from '../config';
 
 beforeEach(() => {
