@@ -1024,8 +1024,9 @@ async function copyExcalidraw(originalFilePath: string, newFilePath: string) {
 	await copyFile(lightFilePath, newFilePath);
 }
 
-// Intitalize GraphicksMagic
-const gm = require("gm").subClass({ imageMagick: "7+" });
+// TODO: Replace with sharp in Task 5
+// const gm = require("gm").subClass({ imageMagick: "7+" });
+const gm: any = null;
 
 async function resizeImage(
 	originalFilePath: string,

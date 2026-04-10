@@ -1,11 +1,10 @@
 import { App, Plugin, PluginSettingTab, Setting, Notice, FileSystemAdapter } from 'obsidian';
 import obsidiosaurusProcess from 'src/mainProcessor'
 import { Config } from 'src/types'
-import pino from 'pino';
 import path from 'path';
 import { setSettings } from 'config';
 
-export const logger = pino();
+export const logger = console;
 
 export const config: Config = {
 	obsidianVaultDirectory: "./vault",
