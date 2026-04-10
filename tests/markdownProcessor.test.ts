@@ -108,4 +108,34 @@ describe('processMarkdown - assets', () => {
     await processMarkdown('test.md', input, assetJson);
     expect(assetJson[0].sizes[0].size).toBe('800');
   });
+
+  it('preserves SVG files without conversion to webp', async () => {
+    const assetJson: any[] = [];
+    const input = '![](assets/diagram.svg)';
+    const result = await processMarkdown('test.md', input, assetJson);
+    expect(result).toContain('.svg');
+    expect(result).not.toContain('.webp');
+  });
+
+  it('converts non-image assets to download links', async () => {
+    const input = '![](assets/guide.pdf)';
+    const result = await processMarkdown('test.md', input, []);
+    expect(result).toContain('[Download guide.pdf]');
+  });
+});
+
+describe('processMarkdown - quote callout', () => {
+  it('handles lowercase [!quote] callout as blockquote', async () => {
+    const input = '> [!quote] Author Name\n> The quote text\n\n';
+    const result = await processMarkdown('test.md', input, []);
+    expect(result).toContain('> — Author Name');
+  });
+});
+
+describe('processMarkdown - blog links', () => {
+  it('handles blog folder links', async () => {
+    const input = '[Post](blog/my-first-post.md)';
+    const result = await processMarkdown('test.md', input, []);
+    expect(result).toContain('/blog/');
+  });
 });
