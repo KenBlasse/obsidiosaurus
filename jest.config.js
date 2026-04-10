@@ -2,6 +2,14 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: {
+        module: 'commonjs',
+        esModuleInterop: true,
+      },
+    }],
+  },
   moduleNameMapper: {
     '^obsidian$': '<rootDir>/__mocks__/obsidian.ts',
     '^src/(.*)$': '<rootDir>/src/$1',
@@ -9,12 +17,4 @@ module.exports = {
     '^main$': '<rootDir>/__mocks__/main.ts',
   },
   testMatch: ['**/tests/**/*.test.ts'],
-  globals: {
-    'ts-jest': {
-      tsconfig: {
-        module: 'commonjs',
-        esModuleInterop: true,
-      },
-    },
-  },
 };
