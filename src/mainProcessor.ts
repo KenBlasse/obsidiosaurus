@@ -15,11 +15,11 @@ import { getAssetsToProcess, copyAssetFilesToTarget, removeAssetReferences, dele
 ////////////////////////////////////////////////////////////////
 
 export default async function obsidiosaurusProcess(
-	basePath: string
+	basePath: string,
+	vaultPath: string
 ): Promise<boolean> {
 	// Docusaurus and Obsidian Vault paths
-	const websitePath = path.join(basePath, "website");
-	const vaultPath = path.join(basePath, "vault");
+	const websitePath = path.join(basePath, config.docusaurusWebsiteDirectory);
 
 	// Get the main folders of the vault e.g. docs, assets, ..
 	const mainFolders = getMainfolders(vaultPath);

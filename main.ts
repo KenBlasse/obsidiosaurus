@@ -33,8 +33,9 @@ export default class Obsidisaurus extends Plugin {
 				new Notice("🚀 Obsidiosaurus started")
 				// @ts-ignore, it says there is no property basePath, but it is?
 				if(this.app.vault.adapter instanceof FileSystemAdapter) {
-					const basePath = path.dirname(this.app.vault.adapter.getBasePath());
-					await obsidiosaurusProcess(basePath);
+					const vaultPath = this.app.vault.adapter.getBasePath();
+					const basePath = path.dirname(vaultPath);
+					await obsidiosaurusProcess(basePath, vaultPath);
 				}
 			} catch (error) {
 				if (this.settings.debug) {
