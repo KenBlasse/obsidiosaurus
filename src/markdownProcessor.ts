@@ -95,9 +95,9 @@ const convertAdmonition = (line: string, isInAdmonition: boolean, isInQuote: boo
         } else {
             // The line is the start of a new Admonition
             isInAdmonition = true;
-            line = ":::" + admonition.type;
+            line = ":::" + admonition.type.toLowerCase();
             if (admonition.title) {
-                line += " " + admonition.title;
+                line += "[" + admonition.title + "]";
             }
             line += "\n";
         }

@@ -72,6 +72,8 @@ export function getTargetPath(
 
 	if (finalPathSourceRelative.endsWith('.yml.md')) {
 		finalPathSourceRelative = finalPathSourceRelative.replace('.yml.md', '.yml');
+	} else if (finalPathSourceRelative.endsWith('.md') && (type === 'docs' || type === 'blog' || type === 'blogMulti')) {
+		finalPathSourceRelative = finalPathSourceRelative.replace(/\.md$/, '.mdx');
 	}
 
 	sourceFileInfo.pathTargetRelative = path.join(mainPath, finalPathSourceRelative);

@@ -20,7 +20,7 @@ describe('processMarkdown - admonitions', () => {
   it('converts Obsidian NOTE callout to Docusaurus admonition', async () => {
     const input = '> [!NOTE] My Title\n> Content here\n\nNext paragraph';
     const result = await processMarkdown('test.md', input, []);
-    expect(result).toContain(':::NOTE My Title');
+    expect(result).toContain(':::note[My Title]');
     expect(result).toContain('Content here');
     expect(result).toContain(':::');
   });
@@ -28,13 +28,13 @@ describe('processMarkdown - admonitions', () => {
   it('converts Obsidian WARNING callout', async () => {
     const input = '> [!WARNING]\n> Watch out\n\n';
     const result = await processMarkdown('test.md', input, []);
-    expect(result).toContain(':::WARNING');
+    expect(result).toContain(':::warning');
   });
 
   it('converts Obsidian TIP callout', async () => {
     const input = '> [!TIP] Pro tip\n> Use this\n\n';
     const result = await processMarkdown('test.md', input, []);
-    expect(result).toContain(':::TIP Pro tip');
+    expect(result).toContain(':::tip[Pro tip]');
   });
 
   it('converts Obsidian QUOTE callout to blockquote', async () => {
