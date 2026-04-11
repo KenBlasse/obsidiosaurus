@@ -8,7 +8,7 @@ import * as path from "path";
 import { getMainfolders, processSingleFolder } from './fileScanner';
 import { getSourceFileInfo } from './fileInfoBuilder';
 import { initializeJsonFile, writeJsonToFile, compareSource, getFilesToDelete, checkFilesExistence, deleteFiles, ensureDirectoryExistence, deleteParentDirectories } from './changeTracker';
-import { getAssetsToProcess, copyAssetFilesToTarget, removeAssetReferences, deleteUnusedFiles } from './assetProcessor';
+import { getAssetsToProcess, copyAssetFilesToTarget, removeAssetReferences, deleteUnusedFiles, clearFileFromAssetJson } from './assetProcessor';
 
 ////////////////////////////////////////////////////////////////
 // MAIN
@@ -152,6 +152,8 @@ async function copyMarkdownFilesToTarget(
 				pathSourceAbsolute,
 				"utf-8"
 			);
+			// Clear stale asset references for this file before re-processing
+			clearFileFromAssetJson(pathSourceRelative, assetJson);
 			// Actual markdown conversion process
 			const transformedContent = await processMarkdown(
 				pathSourceRelative,

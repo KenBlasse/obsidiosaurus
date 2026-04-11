@@ -38,11 +38,9 @@ describe('processMarkdown - admonitions', () => {
   });
 
   it('converts Obsidian QUOTE callout to blockquote', async () => {
-    // Actual behavior: [!QUOTE] is uppercase, so it does NOT match the "quote" lowercase
-    // check in convertAdmonition — it is treated as a regular admonition instead.
     const input = '> [!QUOTE] Author Name\n> The quote text\n\n';
     const result = await processMarkdown('test.md', input, []);
-    expect(result).toContain(':::QUOTE Author Name');
+    expect(result).toContain('> — Author Name');
     expect(result).toContain('The quote text');
   });
 });
@@ -76,14 +74,9 @@ describe('processMarkdown - links', () => {
 
 describe('processMarkdown - assets', () => {
   it('converts Obsidian asset embed to Markdown image', async () => {
-    // Actual behavior: ![[assets/screenshot.png]] is first converted to
-    // ![](assets/screenshot.png), then checkForAssets converts it to
-    // ![screenshot](/assets/screenshot.webp), then checkForLinks incorrectly
-    // prepends another "/" because the path already starts with "/" — resulting
-    // in "//assets/screenshot.webp".
     const input = '![[assets/screenshot.png]]';
     const result = await processMarkdown('test.md', input, []);
-    expect(result).toContain('![screenshot](//assets/screenshot.webp)');
+    expect(result).toContain('![screenshot](/assets/screenshot.webp)');
   });
 
   it('registers image in assetJson on first encounter', async () => {

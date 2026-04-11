@@ -99,8 +99,8 @@ export async function deleteFiles(
   for (const fileToDelete of filesToDelete) {
     const targetFile = targetJson[fileToDelete.index];
     try {
-      await fs.promises.unlink(path.join(basePath, targetFile.pathTargetRelative));
-      await deleteParentDirectories(path.join(basePath, targetFile.pathTargetRelative));
+      await fs.promises.unlink(targetFile.pathTargetAbsolute);
+      await deleteParentDirectories(targetFile.pathTargetAbsolute);
       targetJson.splice(fileToDelete.index, 1);
     } catch (error: any) {
       if (error.code !== 'ENOENT') {

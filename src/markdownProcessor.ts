@@ -88,7 +88,7 @@ const convertAdmonition = (line: string, isInAdmonition: boolean, isInQuote: boo
             isInQuote = false;
         }
     } else if (admonition.type) {
-        if (admonition.type === "quote") {
+        if (admonition.type.toLowerCase() === "quote") {
             // The line is the start of a new quote
             line = "";
             isInQuote = true;
@@ -107,7 +107,7 @@ const convertAdmonition = (line: string, isInAdmonition: boolean, isInQuote: boo
 };
 
 function checkForLinks(line: string): string {
-    const pattern = /\[([^\]]+)\]\(([^)]+)\)/;
+    const pattern = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/;
     const match = line.match(pattern);
 
     if (match) {

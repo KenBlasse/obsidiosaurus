@@ -1,4 +1,4 @@
-import { compareSource, getFilesToDelete } from '../src/changeTracker';
+import { compareSource, getFilesToDelete, deleteFiles } from '../src/changeTracker';
 import { SourceFileInfo, FilesToProcess } from '../src/types';
 import { setSettings } from '../config';
 
@@ -71,5 +71,23 @@ describe('getFilesToDelete', () => {
     const target = [makeTargetFileInfo('docs/a.md', new Date('2025-01-02'))];
     const result = await getFilesToDelete(source, target);
     expect(result).toEqual([]);
+  });
+});
+
+describe('deleteFiles', () => {
+  it('uses pathTargetAbsolute for deletion, not basePath+pathTargetRelative', async () => {
+    const tmpFile = require('os').tmpdir() + '/obsidiosaurus-test-delete.md';
+    require('fs').writeFileSync(tmpFile, 'content');
+
+    const targetJson: SourceFileInfo[] = [{
+      pathTargetAbsolute: tmpFile,
+      pathTargetRelative: 'docs/delete-me.md',
+    } as SourceFileInfo];
+
+    const filesToDelete = [{ index: 0, reason: 'renamed', pathKey: 'docs/delete-me.md' }];
+    await deleteFiles(filesToDelete, targetJson, '/wrong/basepath');
+
+    expect(require('fs').existsSync(tmpFile)).toBe(false);
+    expect(targetJson).toHaveLength(0);
   });
 });

@@ -1,4 +1,3 @@
-import sharp from "sharp";
 import * as fs from "fs";
 import * as path from "path";
 import util from "util";
@@ -150,6 +149,25 @@ export async function getAssetsToProcess(
 	return assetsToProcess;
 }
 
+export function clearFileFromAssetJson(filePath: string, assetJson: Asset[]): void {
+	for (let i = assetJson.length - 1; i >= 0; i--) {
+		const asset = assetJson[i];
+		for (let j = asset.sizes.length - 1; j >= 0; j--) {
+			const size = asset.sizes[j];
+			const idx = size.inDocuments.indexOf(filePath);
+			if (idx !== -1) {
+				size.inDocuments.splice(idx, 1);
+				if (size.inDocuments.length === 0) {
+					asset.sizes.splice(j, 1);
+				}
+			}
+		}
+		if (asset.sizes.length === 0) {
+			assetJson.splice(i, 1);
+		}
+	}
+}
+
 export async function copyAssetFilesToTarget(
 	vaultPathPath: string,
 	websitePath: string,
@@ -175,6 +193,11 @@ export async function copyAssetFilesToTarget(
 				asset.originalFileName
 			)
 			.replace(/%20/g, " ");
+
+		if (!fs.existsSync(originalFilePath)) {
+			logger.warn(`Source asset not found, skipping: ${originalFilePath}`);
+			continue;
+		}
 
 		for (const newName of size.newName) {
 			const newFilePath = path.join(docusaurusAssetFolderPath, newName);
@@ -295,7 +318,7 @@ export function deleteUnusedFiles(json: SourceFileInfo[], websitePath: string) {
 }
 
 ////////////////////////////////////////////////////////////////
-// Image Helpers
+// Image Helpers — Canvas API (no native modules, works in Electron renderer)
 ////////////////////////////////////////////////////////////////
 
 async function resizeImage(
@@ -303,32 +326,59 @@ async function resizeImage(
 	newFilePath: string,
 	size: string
 ): Promise<void> {
-	const image = sharp(originalFilePath);
-	const metadata = await image.metadata();
-	const originalWidth = metadata.width ?? 2500;
+	const imageBuffer = await fs.promises.readFile(originalFilePath);
+	const blob = new Blob([imageBuffer]);
+	const url = URL.createObjectURL(blob);
 
+	const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+		const el = new Image();
+		el.onload = () => resolve(el);
+		el.onerror = reject;
+		el.src = url;
+	});
+	URL.revokeObjectURL(url);
+
+	const maxWidth = parseInt(config.convertedImageMaxWidth);
 	let width: number;
-	let height: number | undefined;
+	let height: number;
 
 	if (size === "standard") {
-		width = Math.min(originalWidth, parseInt(config.convertedImageMaxWidth));
-		height = undefined;
+		width = Math.min(img.naturalWidth, maxWidth);
+		height = Math.round(img.naturalHeight * (width / img.naturalWidth));
 	} else {
 		const dimensions = size.split("x");
 		width = parseInt(dimensions[0]);
-		height = dimensions.length > 1 ? parseInt(dimensions[1]) : undefined;
+		height = dimensions.length > 1
+			? parseInt(dimensions[1])
+			: Math.round(img.naturalHeight * (width / img.naturalWidth));
 	}
 
-	const resized = height
-		? image.resize(width, height, { fit: "fill" })
-		: image.resize(width, undefined, { fit: "inside", withoutEnlargement: true });
+	const canvas = document.createElement("canvas");
+	canvas.width = width;
+	canvas.height = height;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) throw new Error("Canvas 2D context unavailable");
+	ctx.drawImage(img, 0, 0, width, height);
 
-	await resized.webp().toFile(newFilePath);
+	const resultBlob = await new Promise<Blob>((resolve, reject) =>
+		canvas.toBlob(b => b ? resolve(b) : reject(new Error("Canvas toBlob failed")), "image/webp", 0.85)
+	);
+	const buffer = Buffer.from(await resultBlob.arrayBuffer());
+	await fs.promises.writeFile(newFilePath, buffer);
 }
 
 async function getImageWidth(imagePath: string): Promise<number> {
-	const metadata = await sharp(imagePath).metadata();
-	return metadata.width ?? 2500;
+	const imageBuffer = await fs.promises.readFile(imagePath);
+	const blob = new Blob([imageBuffer]);
+	const url = URL.createObjectURL(blob);
+	const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+		const el = new Image();
+		el.onload = () => resolve(el);
+		el.onerror = reject;
+		el.src = url;
+	});
+	URL.revokeObjectURL(url);
+	return img.naturalWidth || 2500;
 }
 
 async function copySVG(originalFilePath: string, newFilePath: string) {
