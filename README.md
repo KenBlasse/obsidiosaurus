@@ -47,6 +47,19 @@ This fork modernizes the codebase and adds Docusaurus v3 compatibility:
 - **Refactored architecture** — mainProcessor split into focused modules: `fileScanner`, `fileInfoBuilder`, `changeTracker`, `assetProcessor`
 - **Bug fixes** — asset double-slash (#13/#18), ENOENT on stale assets (#14), orphaned files on rename (#16)
 
+# 🚀 Installation
+
+**Via BRAT** (recommended for non-store plugins):
+
+1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat) from the Obsidian Community Plugins
+2. Open BRAT settings → "Add Beta plugin"
+3. Enter: `KenBlasse/obsidiosaurus`
+4. Enable the plugin in Obsidian settings
+
+**Manual install:**
+
+Download `main.js`, `manifest.json`, `styles.css` from the [latest release](https://github.com/KenBlasse/obsidiosaurus/releases) and place them in `.obsidian/plugins/obsidiosaurus/`.
+
 # 👀 Documentation
 
 Original documentation: [cimsta.github.io/obsidiosaurus-docs](https://cimsta.github.io/obsidiosaurus-docs/docs/main/Introduction)
