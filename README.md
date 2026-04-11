@@ -19,6 +19,22 @@ Obsidiosaurus is a converter for [Obsidian](https://obsidian.md/) markdown notes
 
 It allows for a better experience writing and maintaining markdown files, since both share a lot of common features.
 
+# 📁 Vault Structure
+
+Only folders named `docs`, `blog`, or `assets` (or containing those words) in your vault root are processed — everything else is ignored. This lets you keep personal notes alongside your public documentation.
+
+Required directory layout:
+
+```
+parent/
+  YourVault/          ← Obsidian Vault (any name)
+    docs/             ← converted to Docusaurus docs
+    assets/           ← images and files
+  website/            ← Docusaurus instance (configurable in plugin settings)
+```
+
+The `docs/` folder supports subfolders, which become sidebar categories.
+
 # 🔧 Changes from original
 
 This fork modernizes the codebase and adds Docusaurus v3 compatibility:
