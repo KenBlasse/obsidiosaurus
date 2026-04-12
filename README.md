@@ -10,8 +10,7 @@ _<p align="center">Obsidian + Docusaurus = Where your Obsidian notes meet the we
   <a href=""><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" /></a>
 </p>
 
-> **This is a modernized fork** of [cimsta/obsidiosaurus](https://github.com/cimsta/obsidiosaurus) by [Mat4m0](https://github.com/Mat4m0).
-> See [Changes from original](#-changes-from-original) below.
+> **Community continuation** — the original author [Mat4m0](https://github.com/Mat4m0) is no longer maintaining this project and has handed it over to [KenBlasse](https://github.com/KenBlasse). This is now the official repository.
 
 # 👋 Introduction
 
@@ -35,9 +34,9 @@ parent/
 
 The `docs/` folder supports subfolders, which become sidebar categories.
 
-# 🔧 Changes from original
+# 🔧 What's new in v1.0.0
 
-This fork modernizes the codebase and adds Docusaurus v3 compatibility:
+Modernized codebase with Docusaurus v3 compatibility:
 
 - **Docusaurus v3 support** — outputs `.mdx` files (required for admonitions with `future.v4` flag)
 - **Admonition syntax updated** — `:::note[Title]` format, lowercase types
@@ -110,8 +109,9 @@ Original documentation: [cimsta.github.io/obsidiosaurus-docs](https://cimsta.git
 
 # 💭 Need help?
 
-For the original plugin: [Obsidiosaurus Discord](https://discord.gg/SSGK5tuqJh)
+Open an [issue on GitHub](https://github.com/KenBlasse/obsidiosaurus/issues).
 
 # ✍ Credits
 
 Original author: [Mat4m0](https://github.com/Mat4m0) — Matthias
+Current maintainer: [KenBlasse](https://github.com/KenBlasse)
