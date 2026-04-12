@@ -62,12 +62,23 @@ async function processMarkdown(processedFileName, sourceContent, assetJson) {
     terminal: false
   });
   let transformedContent = "";
-  let inAdmonition = false, inQuote = false;
+  let inAdmonition = false, inQuote = false, inBlockComment = false;
   let admonition = { type: "", title: "", whitespaces: 0 };
   for await (const line of rl) {
-    let processedLine = await convertObsidianLinks(line);
+    if (inBlockComment) {
+      if (line.includes("%%")) inBlockComment = false;
+      continue;
+    }
+    if (line.trim() === "%%") {
+      inBlockComment = true;
+      continue;
+    }
+    const withoutInlineComments = line.replace(/%%.*?%%/g, "").trimEnd();
+    if (withoutInlineComments === "" && line.includes("%%")) continue;
+    let processedLine = await convertObsidianLinks(withoutInlineComments);
     processedLine = checkForAssets(processedLine, processedFileName, assetJson);
     processedLine = checkForLinks(processedLine);
+    processedLine = convertHighlighting(processedLine);
     [processedLine, inAdmonition, inQuote, admonition] = convertAdmonition(processedLine, inAdmonition, inQuote, admonition);
     transformedContent += processedLine + "\n";
   }
@@ -124,6 +135,9 @@ var convertAdmonition = (line, isInAdmonition, isInQuote, admonition) => {
   }
   return [line, isInAdmonition, isInQuote, admonition];
 };
+function convertHighlighting(line) {
+  return line.replace(/==(.+?)==/g, "<mark>$1</mark>");
+}
 function checkForLinks(line) {
   const pattern = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/;
   const match = line.match(pattern);

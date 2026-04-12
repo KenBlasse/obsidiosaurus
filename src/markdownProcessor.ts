@@ -20,15 +20,29 @@ export default async function processMarkdown(processedFileName: string, sourceC
 
     // Initialize the transformed content as an empty string
     let transformedContent = '';
-    let inAdmonition = false, inQuote = false;
+    let inAdmonition = false, inQuote = false, inBlockComment = false;
     let admonition = { type: '', title: '', whitespaces: 0 };
 
     // Iterate over the lines
     for await (const line of rl) {
 
-        let processedLine = await convertObsidianLinks(line);
+        // Handle Obsidian block comments (%% ... %%)
+        if (inBlockComment) {
+            if (line.includes('%%')) inBlockComment = false;
+            continue;
+        }
+        if (line.trim() === '%%') {
+            inBlockComment = true;
+            continue;
+        }
+        // Remove inline comments %% ... %%
+        const withoutInlineComments = line.replace(/%%.*?%%/g, '').trimEnd();
+        if (withoutInlineComments === '' && line.includes('%%')) continue;
+
+        let processedLine = await convertObsidianLinks(withoutInlineComments);
         processedLine = checkForAssets(processedLine, processedFileName, assetJson);
         processedLine = checkForLinks(processedLine);
+        processedLine = convertHighlighting(processedLine);
         [processedLine, inAdmonition, inQuote, admonition] = convertAdmonition(processedLine, inAdmonition, inQuote, admonition);
 
         // Append the processed line to the transformed content
@@ -105,6 +119,10 @@ const convertAdmonition = (line: string, isInAdmonition: boolean, isInQuote: boo
 
     return [line, isInAdmonition, isInQuote, admonition];
 };
+
+function convertHighlighting(line: string): string {
+    return line.replace(/==(.+?)==/g, '<mark>$1</mark>');
+}
 
 function checkForLinks(line: string): string {
     const pattern = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/;
