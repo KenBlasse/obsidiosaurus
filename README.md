@@ -63,6 +63,8 @@ Download `main.js`, `manifest.json`, `styles.css` from the [latest release](http
 
 Original documentation: [cimsta.github.io/obsidiosaurus-docs](https://cimsta.github.io/obsidiosaurus-docs/docs/main/Introduction)
 
+New documentation: [https://kenblasse.github.io/obsidiosaurus-docs/](https://kenblasse.github.io/obsidiosaurus-docs/docs/main/Introduction)
+
 # 📃 Features
 
 ## General
