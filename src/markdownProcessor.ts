@@ -121,7 +121,14 @@ const convertAdmonition = (line: string, isInAdmonition: boolean, isInQuote: boo
 };
 
 function convertHighlighting(line: string): string {
-    return line.replace(/==(.+?)==/g, '<mark>$1</mark>');
+    const converted = line.replace(/==(.+?)==/g, '<mark>$1</mark>');
+    // MDX 2 treats a paragraph starting with a JSX tag as a block-level JSX element,
+    // which breaks any markdown syntax (e.g. backtick code spans) on the same line.
+    // Prefix with a zero-width JSX expression to keep it inline.
+    if (converted.startsWith('<mark>')) {
+        return `{''}` + converted;
+    }
+    return converted;
 }
 
 function checkForLinks(line: string): string {

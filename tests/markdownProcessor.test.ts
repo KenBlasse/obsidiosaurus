@@ -132,3 +132,27 @@ describe('processMarkdown - blog links', () => {
     expect(result).toContain('/blog/');
   });
 });
+
+describe('processMarkdown - highlighting', () => {
+  it('converts ==text== to <mark> inline', async () => {
+    const input = 'This is ==highlighted== text.';
+    const result = await processMarkdown('test.md', input, []);
+    expect(result).toContain('<mark>highlighted</mark>');
+  });
+
+  it('prefixes <mark> with empty JSX expression when at line start', async () => {
+    // Prevents MDX 2 from parsing the line as a block-level JSX element,
+    // which would break markdown syntax (backtick spans etc.) on the same line.
+    const input = "==Highlighted text== — syntax `==text==`";
+    const result = await processMarkdown('test.md', input, []);
+    expect(result).toContain("{''}");
+    expect(result).toMatch(/\{''\}<mark>Highlighted text<\/mark>/);
+  });
+
+  it('does not prefix when <mark> is not at line start', async () => {
+    const input = 'Text before ==highlighted== text.';
+    const result = await processMarkdown('test.md', input, []);
+    expect(result).not.toContain("{''}");
+    expect(result).toContain('<mark>highlighted</mark>');
+  });
+});
