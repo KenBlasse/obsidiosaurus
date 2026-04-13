@@ -11,6 +11,43 @@ import { initializeJsonFile, writeJsonToFile, compareSource, getFilesToDelete, c
 import { getAssetsToProcess, copyAssetFilesToTarget, removeAssetReferences, deleteUnusedFiles, clearFileFromAssetJson } from './assetProcessor';
 
 ////////////////////////////////////////////////////////////////
+// PREVIEW
+////////////////////////////////////////////////////////////////
+
+export interface ChangePreview {
+	filesToProcess: number;
+	filesToDelete: number;
+}
+
+export async function previewChanges(
+	basePath: string,
+	vaultPath: string
+): Promise<ChangePreview> {
+	const mainFolders = getMainfolders(vaultPath);
+	mainFolders.forEach((folder) => processSingleFolder(folder, vaultPath));
+
+	const allInfo = mainFolders.flatMap((folder) =>
+		folder.files.map((file) =>
+			getSourceFileInfo(basePath, folder, file, vaultPath)
+		)
+	);
+	const allSourceFilesInfo = allInfo.filter((info) => info.type !== "assets");
+
+	let targetJson: SourceFileInfo[] = await initializeJsonFile(
+		path.join(basePath, "allFilesInfo.json")
+	);
+	targetJson = await checkFilesExistence(targetJson);
+
+	const filesToDelete = await getFilesToDelete(allSourceFilesInfo, targetJson);
+	const filesToProcess = await compareSource(allSourceFilesInfo, targetJson);
+
+	return {
+		filesToProcess: filesToProcess.length,
+		filesToDelete: filesToDelete.length,
+	};
+}
+
+////////////////////////////////////////////////////////////////
 // MAIN
 ////////////////////////////////////////////////////////////////
 

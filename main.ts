@@ -1,5 +1,5 @@
-import { App, Plugin, PluginSettingTab, Setting, Notice, FileSystemAdapter } from 'obsidian';
-import obsidiosaurusProcess from 'src/mainProcessor'
+import { App, Modal, Plugin, PluginSettingTab, Setting, Notice, FileSystemAdapter } from 'obsidian';
+import obsidiosaurusProcess, { previewChanges, ChangePreview } from 'src/mainProcessor'
 import { Config } from 'src/types'
 import path from 'path';
 import { setSettings } from 'config';
@@ -29,23 +29,31 @@ export default class Obsidisaurus extends Plugin {
 
 		const ribbonIconEl = this.addRibbonIcon('file-up', 'Obsidiosaurus', async (evt: MouseEvent) => {
 			try {
-				logger.info("🚀 Obsidiosaurus started");
-				new Notice("🚀 Obsidiosaurus started")
-				// @ts-ignore, it says there is no property basePath, but it is?
-				if(this.app.vault.adapter instanceof FileSystemAdapter) {
-					const vaultPath = this.app.vault.adapter.getBasePath();
-					const basePath = path.dirname(vaultPath);
-					await obsidiosaurusProcess(basePath, vaultPath);
-				}
+				if (!(this.app.vault.adapter instanceof FileSystemAdapter)) return;
+				const vaultPath = this.app.vault.adapter.getBasePath();
+				const basePath = path.dirname(vaultPath);
+
+				const preview = await previewChanges(basePath, vaultPath);
+
+				new ConfirmModal(this.app, preview, async () => {
+					try {
+						logger.info("🚀 Obsidiosaurus started");
+						new Notice("🚀 Obsidiosaurus started");
+						await obsidiosaurusProcess(basePath, vaultPath);
+					} catch (error) {
+						if (this.settings.debug) {
+							const errorMessage = `❌ Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
+							logger.error(errorMessage);
+							new Notice(`❌ Obsidiosaurus crashed. \n${errorMessage}`);
+						} else {
+							logger.error(`❌ Obsidiosaurus crashed with error message: \n${error} `);
+							new Notice("❌ Obsidiosaurus crashed. \n Check log files for more info");
+						}
+					}
+				}).open();
 			} catch (error) {
-				if (this.settings.debug) {
-					const errorMessage = `❌ Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
-					logger.error(errorMessage);
-					new Notice(`❌ Obsidiosaurus crashed. \n${errorMessage}`);
-				} else {
-					logger.error(`❌ Obsidiosaurus crashed with error message: \n${error} `);
-					new Notice("❌ Obsidiosaurus crashed. \n Check log files for more info")
-				}
+				logger.error(`❌ Obsidiosaurus preview failed: \n${error}`);
+				new Notice("❌ Could not calculate changes. Check log files for more info");
 			}
 		});
 
@@ -180,6 +188,58 @@ class SettingTab extends PluginSettingTab {
 			});
 
 
+	}
+}
+
+
+class ConfirmModal extends Modal {
+	private preview: ChangePreview;
+	private onConfirm: () => void;
+
+	constructor(app: App, preview: ChangePreview, onConfirm: () => void) {
+		super(app);
+		this.preview = preview;
+		this.onConfirm = onConfirm;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl('h2', { text: 'Run Obsidiosaurus?' });
+
+		const { filesToProcess, filesToDelete } = this.preview;
+
+		if (filesToProcess === 0 && filesToDelete === 0) {
+			contentEl.createEl('p', { text: 'Nothing to do — all files are up to date.' });
+		} else {
+			const list = contentEl.createEl('ul');
+			if (filesToProcess > 0)
+				list.createEl('li', { text: `${filesToProcess} file${filesToProcess !== 1 ? 's' : ''} will be converted / updated` });
+			if (filesToDelete > 0)
+				list.createEl('li', { text: `${filesToDelete} file${filesToDelete !== 1 ? 's' : ''} will be deleted from website` });
+		}
+
+		const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
+
+		buttonRow.createEl('button', { text: 'Cancel' }).addEventListener('click', () => {
+			this.close();
+		});
+
+		const confirmBtn = buttonRow.createEl('button', {
+			text: filesToProcess === 0 && filesToDelete === 0 ? 'OK' : 'Run',
+			cls: 'mod-cta',
+		});
+		confirmBtn.addEventListener('click', () => {
+			this.close();
+			if (filesToProcess > 0 || filesToDelete > 0) {
+				this.onConfirm();
+			}
+		});
+	}
+
+	onClose() {
+		this.contentEl.empty();
 	}
 }
 
