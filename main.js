@@ -75,7 +75,7 @@ async function processMarkdown(processedFileName, sourceContent, assetJson) {
     }
     const withoutInlineComments = line.replace(/%%.*?%%/g, "").trimEnd();
     if (withoutInlineComments === "" && line.includes("%%")) continue;
-    let processedLine = await convertObsidianLinks(withoutInlineComments);
+    let processedLine = convertObsidianLinks(withoutInlineComments);
     processedLine = checkForAssets(processedLine, processedFileName, assetJson);
     processedLine = checkForLinks(processedLine);
     processedLine = convertHighlighting(processedLine);
@@ -84,7 +84,7 @@ async function processMarkdown(processedFileName, sourceContent, assetJson) {
   }
   return transformedContent;
 }
-async function convertObsidianLinks(line) {
+function convertObsidianLinks(line) {
   const pattern = new RegExp(`!\\[\\[(${config.docusaurusAssetSubfolderName}/.*?)\\]\\]`);
   const match = line.match(pattern);
   if (match !== null) {
@@ -136,7 +136,11 @@ var convertAdmonition = (line, isInAdmonition, isInQuote, admonition) => {
   return [line, isInAdmonition, isInQuote, admonition];
 };
 function convertHighlighting(line) {
-  return line.replace(/==(.+?)==/g, "<mark>$1</mark>");
+  const converted = line.replace(/==(.+?)==/g, "<mark>$1</mark>");
+  if (converted.startsWith("<mark>")) {
+    return `{''}` + converted;
+  }
+  return converted;
 }
 function checkForLinks(line) {
   const pattern = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/;
@@ -190,7 +194,7 @@ function removeBlogSuffix(mainFolder) {
   return mainFolder.replace("__blog", "");
 }
 function removeNumberPrefix(str) {
-  return str.replace(/^\d+[\.\-\)\s%20]*\s*/, "").trim();
+  return str.replace(/^\d+[.\-)\s%20]*\s*/, "").trim();
 }
 function getOrCreateSize(sizes, size, processedFileName) {
   let existingSize = sizes.find((s) => s.size === size);
@@ -207,10 +211,11 @@ function getOrCreateSize(sizes, size, processedFileName) {
   return existingSize;
 }
 function checkForAssets(line, processedFileName, assetJson) {
+  var _a;
   const match = line.match(/!\[(?:\|(?<size>\d+(x\d+)?))?\]\((?<path>.*?)\)/);
   if (match && match.groups) {
     let { size, path: path7 } = match.groups;
-    const fileNameWithExtension = path7.split("/").pop();
+    const fileNameWithExtension = (_a = path7.split("/").pop()) != null ? _a : "";
     let [fileName, fileExtension] = fileNameWithExtension.split(".");
     fileName = fileName.replace(/ /g, "_");
     fileName = fileName.replace(/%20/g, "_");
@@ -460,7 +465,7 @@ async function writeJsonToFile(filePath, content) {
   await fs3.promises.writeFile(filePath, JSON.stringify(content, null, 2));
   return JSON.parse(await fs3.promises.readFile(filePath, "utf-8"));
 }
-async function compareSource(sourceJson, targetJson) {
+function compareSource(sourceJson, targetJson) {
   const filesToProcess = [];
   sourceJson.forEach((sourceFile, i) => {
     const matchingTargetFile = targetJson.find(
@@ -472,7 +477,7 @@ async function compareSource(sourceJson, targetJson) {
   });
   return filesToProcess;
 }
-async function getFilesToDelete(allSourceFilesInfo, targetJson) {
+function getFilesToDelete(allSourceFilesInfo, targetJson) {
   const filesToDelete = [];
   targetJson.forEach((targetFile, i) => {
     const matchingSourceFile = allSourceFilesInfo.find(
@@ -489,7 +494,7 @@ async function getFilesToDelete(allSourceFilesInfo, targetJson) {
     } else if (sourceDate && targetDate.getTime() < sourceDate.getTime()) {
       filesToDelete.push({
         index: i,
-        reason: `its last modification date ${targetDate} is older than the date in sourceJson ${sourceDate}`,
+        reason: `its last modification date ${targetDate.toISOString()} is older than the date in sourceJson ${sourceDate.toISOString()}`,
         pathKey: targetFile.pathSourceRelative
       });
     }
@@ -542,7 +547,8 @@ async function deleteParentDirectories(filepath) {
     try {
       await fs3.promises.rmdir(dirPath);
     } catch (error) {
-      if (error.code !== "ENOTEMPTY" && error.code !== "EEXIST" && error.code !== "EPERM") {
+      const err = error;
+      if (err.code !== "ENOTEMPTY" && err.code !== "EEXIST" && err.code !== "EPERM") {
         logger.error(`Failed to delete directory ${dirPath}: ${error}`);
       }
       return;
@@ -622,7 +628,7 @@ async function removeAssetFromTarget(assetToRemove, docusaurusAssetSubfolderName
     }
   }
 }
-async function getAssetsToProcess(assetJson, websitePath) {
+function getAssetsToProcess(assetJson, websitePath) {
   const documents = [];
   for (const [assetIndex, asset] of assetJson.entries()) {
     for (const [sizeIndex, size] of asset.sizes.entries()) {
@@ -691,7 +697,7 @@ async function copyAssetFilesToTarget(vaultPathPath, websitePath, assetJson, ass
       )) {
         try {
           if (size.size === "standard" && asset.fileExtension === "gif") {
-            await fs4.copyFileSync(originalFilePath, newFilePath);
+            fs4.copyFileSync(originalFilePath, newFilePath);
             if (config.debug) {
               logger.info(
                 `Image copied from ${originalFilePath} to ${newFilePath}`
@@ -739,7 +745,7 @@ async function copyAssetFilesToTarget(vaultPathPath, websitePath, assetJson, ass
     }
   }
 }
-function deleteUnusedFiles(json, websitePath) {
+async function deleteUnusedFiles(json, websitePath) {
   const targetDirectories = ["blog", "i18n", "docs"];
   const blogSuffix = "__blog";
   let filesFound = [];
@@ -768,13 +774,13 @@ function deleteUnusedFiles(json, websitePath) {
     const dirPath = path4.join(websitePath, dir.name);
     exploreDirectory(dirPath);
   });
-  filesFound.forEach(async (file) => {
+  for (const file of filesFound) {
     const fileIsUsed = json.some((j) => j.pathTargetAbsolute === file);
     if (!fileIsUsed) {
       await fs4.promises.unlink(file);
-      console.log(`Deleted unused file: ${file}`);
+      logger.debug(`Deleted unused file: ${file}`);
     }
-  });
+  }
 }
 async function resizeImage(originalFilePath, newFilePath, size) {
   const imageBuffer = await fs4.promises.readFile(originalFilePath);
@@ -823,6 +829,26 @@ async function copyExcalidraw(originalFilePath, newFilePath) {
 }
 
 // src/mainProcessor.ts
+async function previewChanges(basePath, vaultPath) {
+  const mainFolders = getMainfolders(vaultPath);
+  mainFolders.forEach((folder) => processSingleFolder(folder, vaultPath));
+  const allInfo = mainFolders.flatMap(
+    (folder) => folder.files.map(
+      (file) => getSourceFileInfo(basePath, folder, file, vaultPath)
+    )
+  );
+  const allSourceFilesInfo = allInfo.filter((info) => info.type !== "assets");
+  let targetJson = await initializeJsonFile(
+    path5.join(basePath, "allFilesInfo.json")
+  );
+  targetJson = await checkFilesExistence(targetJson);
+  const filesToDelete = getFilesToDelete(allSourceFilesInfo, targetJson);
+  const filesToProcess = compareSource(allSourceFilesInfo, targetJson);
+  return {
+    filesToProcess: filesToProcess.length,
+    filesToDelete: filesToDelete.length
+  };
+}
 async function obsidiosaurusProcess(basePath, vaultPath) {
   const websitePath = path5.join(basePath, config.docusaurusWebsiteDirectory);
   const mainFolders = getMainfolders(vaultPath);
@@ -851,7 +877,7 @@ async function obsidiosaurusProcess(basePath, vaultPath) {
     path5.join(basePath, "assetInfo.json")
   );
   targetJson = await checkFilesExistence(targetJson);
-  const filesToDelete = await getFilesToDelete(
+  const filesToDelete = getFilesToDelete(
     allSourceFilesInfo,
     targetJson
   );
@@ -865,9 +891,9 @@ async function obsidiosaurusProcess(basePath, vaultPath) {
     path5.join(basePath, "allSourceAssetsInfo.json"),
     allSourceAssetsInfo
   );
-  const filesToProcess = await compareSource(allSourceFilesInfo, targetJson);
+  const filesToProcess = compareSource(allSourceFilesInfo, targetJson);
   if (filesToProcess.length > 0) {
-    new import_obsidian.Notice(`\u2699 Processing ${filesToProcess.length} Files`);
+    new import_obsidian.Notice(`Processing ${filesToProcess.length} files`);
     const filesToProcessIndices = filesToProcess.map((file) => file.index);
     const filesToMarkdownProcess = allSourceFilesInfo.filter(
       (_, index) => filesToProcessIndices.includes(index)
@@ -883,10 +909,10 @@ async function obsidiosaurusProcess(basePath, vaultPath) {
       targetJson
     );
   } else {
-    new import_obsidian.Notice(`\u{1F4A4} Nothing to process`);
+    new import_obsidian.Notice("Nothing to process");
   }
-  const assetsToProcess = await getAssetsToProcess(assetJson, websitePath);
-  new import_obsidian.Notice(`\u2699 Processing ${assetsToProcess.length} Assets`);
+  const assetsToProcess = getAssetsToProcess(assetJson, websitePath);
+  new import_obsidian.Notice(`Processing ${assetsToProcess.length} assets`);
   if (assetsToProcess.length > 0) {
     await copyAssetFilesToTarget(
       vaultPath,
@@ -895,9 +921,9 @@ async function obsidiosaurusProcess(basePath, vaultPath) {
       assetsToProcess
     );
   }
-  deleteUnusedFiles(targetJson, websitePath);
-  logger.info("\u2705 Obsidiosaurus run successfully");
-  new import_obsidian.Notice("\u2705 Obsidiosaurus run successfully");
+  await deleteUnusedFiles(targetJson, websitePath);
+  logger.info("Obsidiosaurus run successfully");
+  new import_obsidian.Notice("Obsidiosaurus run successfully");
   return true;
 }
 async function copyMarkdownFilesToTarget(files, basePath, targetJson, assetJson) {
@@ -960,25 +986,32 @@ var Obsidisaurus = class extends import_obsidian2.Plugin {
     }
     const ribbonIconEl = this.addRibbonIcon("file-up", "Obsidiosaurus", async (evt) => {
       try {
-        logger.info("\u{1F680} Obsidiosaurus started");
-        new import_obsidian2.Notice("\u{1F680} Obsidiosaurus started");
-        if (this.app.vault.adapter instanceof import_obsidian2.FileSystemAdapter) {
-          const vaultPath = this.app.vault.adapter.getBasePath();
-          const basePath = import_path.default.dirname(vaultPath);
-          await obsidiosaurusProcess(basePath, vaultPath);
-        }
-      } catch (error) {
-        if (this.settings.debug) {
-          const errorMessage = `\u274C Obsidiosaurus crashed in function with the following error:
+        if (!(this.app.vault.adapter instanceof import_obsidian2.FileSystemAdapter)) return;
+        const vaultPath = this.app.vault.adapter.getBasePath();
+        const basePath = import_path.default.dirname(vaultPath);
+        const preview = await previewChanges(basePath, vaultPath);
+        new ConfirmModal(this.app, preview, async () => {
+          try {
+            logger.info("Obsidiosaurus started");
+            new import_obsidian2.Notice("Obsidiosaurus started");
+            await obsidiosaurusProcess(basePath, vaultPath);
+          } catch (error) {
+            if (this.settings.debug) {
+              const errorMessage = `Obsidiosaurus crashed in function with the following error:
 ${error.stack}`;
-          logger.error(errorMessage);
-          new import_obsidian2.Notice(`\u274C Obsidiosaurus crashed. 
-${errorMessage}`);
-        } else {
-          logger.error(`\u274C Obsidiosaurus crashed with error message: 
+              logger.error(errorMessage);
+              new import_obsidian2.Notice(`Obsidiosaurus crashed. ${errorMessage}`);
+            } else {
+              logger.error(`Obsidiosaurus crashed with error message: 
 ${error} `);
-          new import_obsidian2.Notice("\u274C Obsidiosaurus crashed. \n Check log files for more info");
-        }
+              new import_obsidian2.Notice("Obsidiosaurus crashed. Check log files for more info");
+            }
+          }
+        }).open();
+      } catch (error) {
+        logger.error(`Obsidiosaurus preview failed: 
+${error}`);
+        new import_obsidian2.Notice("Could not calculate changes. Check log files for more info");
       }
     });
     ribbonIconEl.addClass("my-plugin-ribbon-class");
@@ -1005,47 +1038,86 @@ var SettingTab = class extends import_obsidian2.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h1", { text: "Directories" });
-    new import_obsidian2.Setting(containerEl).setName("Docusaurus Directory").setDesc("Path to your docusaurus instance").addText((text) => text.setPlaceholder("Enter paths").setValue(this.plugin.settings.docusaurusWebsiteDirectory).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Directories").setHeading();
+    new import_obsidian2.Setting(containerEl).setName("Docusaurus directory").setDesc("Path to your Docusaurus instance").addText((text) => text.setPlaceholder("Enter paths").setValue(this.plugin.settings.docusaurusWebsiteDirectory).onChange(async (value) => {
       this.plugin.settings.docusaurusWebsiteDirectory = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h1", { text: "Assets" });
-    new import_obsidian2.Setting(containerEl).setName("Obsidian Asset Folder").setDesc("Name of Obsidian Asset Folder").addText((text) => text.setPlaceholder("Enter folders").setValue(this.plugin.settings.obsidianAssetSubfolderName).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Assets").setHeading();
+    new import_obsidian2.Setting(containerEl).setName("Obsidian asset folder").setDesc("Name of the Obsidian asset folder").addText((text) => text.setPlaceholder("Enter folders").setValue(this.plugin.settings.obsidianAssetSubfolderName).onChange(async (value) => {
       this.plugin.settings.obsidianAssetSubfolderName = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Docusaurus Asset Folder").setDesc("Name of Docusaurus Asset Folder").addText((text) => text.setPlaceholder("Enter folders").setValue(this.plugin.settings.docusaurusAssetSubfolderName).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Docusaurus asset folder").setDesc("Name of the Docusaurus asset folder").addText((text) => text.setPlaceholder("Enter folders").setValue(this.plugin.settings.docusaurusAssetSubfolderName).onChange(async (value) => {
       this.plugin.settings.docusaurusAssetSubfolderName = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Image Type").setDesc("Format in which to convert all images").addDropdown((dropdown) => dropdown.addOptions({
+    new import_obsidian2.Setting(containerEl).setName("Image type").setDesc("Format in which to convert all images").addDropdown((dropdown) => dropdown.addOptions({
       "webp": "WebP"
     }).setValue(this.plugin.settings.convertedImageType).onChange(async (value) => {
       this.plugin.settings.convertedImageType = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Image Width").setDesc("Set the max width for the images in [px]").addText((number) => number.setPlaceholder("2500").setValue(this.plugin.settings.convertedImageMaxWidth).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Image width").setDesc("Set the max width for the images in [px]").addText((number) => number.setPlaceholder("2500").setValue(this.plugin.settings.convertedImageMaxWidth).onChange(async (value) => {
       this.plugin.settings.convertedImageMaxWidth = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h1", { text: "Language" });
-    new import_obsidian2.Setting(containerEl).setName("Main Language").setDesc("Your main language code to publish").addText((text) => text.setPlaceholder("Enter language code").setValue(this.plugin.settings.mainLanguage).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Language").setHeading();
+    new import_obsidian2.Setting(containerEl).setName("Main language").setDesc("Your main language code to publish").addText((text) => text.setPlaceholder("Enter language code").setValue(this.plugin.settings.mainLanguage).onChange(async (value) => {
       this.plugin.settings.mainLanguage = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h1", { text: "Dev Options" });
+    new import_obsidian2.Setting(containerEl).setName("Developer").setHeading();
     new import_obsidian2.Setting(containerEl).setName("Debug mode").setDesc("Better logging for debugging").addToggle((value) => {
       value.setValue(this.plugin.settings.debug).onChange((value2) => {
         this.plugin.settings.debug = value2;
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
     });
     new import_obsidian2.Setting(containerEl).setName("Developer mode").setDesc("Only for plugin developers").addToggle((value) => {
       value.setValue(this.plugin.settings.debug).onChange((value2) => {
         this.plugin.settings.debug = value2;
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
     });
+  }
+};
+var ConfirmModal = class extends import_obsidian2.Modal {
+  constructor(app, preview, onConfirm) {
+    super(app);
+    this.preview = preview;
+    this.onConfirm = onConfirm;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: "Run Obsidiosaurus?" });
+    const { filesToProcess, filesToDelete } = this.preview;
+    if (filesToProcess === 0 && filesToDelete === 0) {
+      contentEl.createEl("p", { text: "Nothing to do \u2014 all files are up to date." });
+    } else {
+      const list = contentEl.createEl("ul");
+      if (filesToProcess > 0)
+        list.createEl("li", { text: `${filesToProcess} file${filesToProcess !== 1 ? "s" : ""} will be converted / updated` });
+      if (filesToDelete > 0)
+        list.createEl("li", { text: `${filesToDelete} file${filesToDelete !== 1 ? "s" : ""} will be deleted from website` });
+    }
+    const buttonRow = contentEl.createDiv({ cls: "modal-button-container" });
+    buttonRow.createEl("button", { text: "Cancel" }).addEventListener("click", () => {
+      this.close();
+    });
+    const confirmBtn = buttonRow.createEl("button", {
+      text: filesToProcess === 0 && filesToDelete === 0 ? "OK" : "Run",
+      cls: "mod-cta"
+    });
+    confirmBtn.addEventListener("click", () => {
+      this.close();
+      if (filesToProcess > 0 || filesToDelete > 0) {
+        void this.onConfirm();
+      }
+    });
+  }
+  onClose() {
+    this.contentEl.empty();
   }
 };

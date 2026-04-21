@@ -38,8 +38,8 @@ export async function previewChanges(
 	);
 	targetJson = await checkFilesExistence(targetJson);
 
-	const filesToDelete = await getFilesToDelete(allSourceFilesInfo, targetJson);
-	const filesToProcess = await compareSource(allSourceFilesInfo, targetJson);
+	const filesToDelete = getFilesToDelete(allSourceFilesInfo, targetJson);
+	const filesToProcess = compareSource(allSourceFilesInfo, targetJson);
 
 	return {
 		filesToProcess: filesToProcess.length,
@@ -95,7 +95,7 @@ export default async function obsidiosaurusProcess(
 	targetJson = await checkFilesExistence(targetJson);
 
 	// Check if source files are newer or missing in vault and prepare for deletion
-	const filesToDelete = await getFilesToDelete(
+	const filesToDelete = getFilesToDelete(
 		allSourceFilesInfo,
 		targetJson
 	);
@@ -115,11 +115,11 @@ export default async function obsidiosaurusProcess(
 	);
 
 	// Compare source and target files to determine which ones to process
-	const filesToProcess = await compareSource(allSourceFilesInfo, targetJson);
+	const filesToProcess = compareSource(allSourceFilesInfo, targetJson);
 
 	// Process markdown conversion if there are files to process
 	if (filesToProcess.length > 0) {
-		new Notice(`⚙ Processing ${filesToProcess.length} Files`);
+		new Notice(`Processing ${filesToProcess.length} files`);
 
 		// Get the indices of files to process and filter them from source files
 		const filesToProcessIndices = filesToProcess.map((file) => file.index);
@@ -141,12 +141,12 @@ export default async function obsidiosaurusProcess(
 			targetJson
 		);
 	} else {
-		new Notice(`💤 Nothing to process`);
+		new Notice("Nothing to process");
 	}
 
 	// Find all assets that need to be processed and perform the conversion
-	const assetsToProcess = await getAssetsToProcess(assetJson, websitePath);
-	new Notice(`⚙ Processing ${assetsToProcess.length} Assets`);
+	const assetsToProcess = getAssetsToProcess(assetJson, websitePath);
+	new Notice(`Processing ${assetsToProcess.length} assets`);
 	if (assetsToProcess.length > 0) {
 		await copyAssetFilesToTarget(
 			vaultPath,
@@ -159,8 +159,8 @@ export default async function obsidiosaurusProcess(
 	// Delete unused markdown files from Docusaurus
 	await deleteUnusedFiles(targetJson, websitePath);
 
-	logger.info("✅ Obsidiosaurus run successfully");
-	new Notice("✅ Obsidiosaurus run successfully");
+	logger.info("Obsidiosaurus run successfully");
+	new Notice("Obsidiosaurus run successfully");
 
 	return true;
 }

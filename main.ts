@@ -37,23 +37,23 @@ export default class Obsidisaurus extends Plugin {
 
 				new ConfirmModal(this.app, preview, async () => {
 					try {
-						logger.info("🚀 Obsidiosaurus started");
-						new Notice("🚀 Obsidiosaurus started");
+						logger.info("Obsidiosaurus started");
+						new Notice("Obsidiosaurus started");
 						await obsidiosaurusProcess(basePath, vaultPath);
 					} catch (error) {
 						if (this.settings.debug) {
-							const errorMessage = `❌ Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
+							const errorMessage = `Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
 							logger.error(errorMessage);
-							new Notice(`❌ Obsidiosaurus crashed. \n${errorMessage}`);
+							new Notice(`Obsidiosaurus crashed. ${errorMessage}`);
 						} else {
-							logger.error(`❌ Obsidiosaurus crashed with error message: \n${error} `);
-							new Notice("❌ Obsidiosaurus crashed. \n Check log files for more info");
+							logger.error(`Obsidiosaurus crashed with error message: \n${error} `);
+							new Notice("Obsidiosaurus crashed. Check log files for more info");
 						}
 					}
 				}).open();
 			} catch (error) {
-				logger.error(`❌ Obsidiosaurus preview failed: \n${error}`);
-				new Notice("❌ Could not calculate changes. Check log files for more info");
+				logger.error(`Obsidiosaurus preview failed: \n${error}`);
+				new Notice("Could not calculate changes. Check log files for more info");
 			}
 		});
 
@@ -165,7 +165,7 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl).setName('Dev options').setHeading();
+		new Setting(containerEl).setName('Developer').setHeading();
 
 		new Setting(containerEl)
 			.setName('Debug mode')
@@ -194,7 +194,7 @@ class SettingTab extends PluginSettingTab {
 
 class ConfirmModal extends Modal {
 	private preview: ChangePreview;
-	private onConfirm: () => void;
+	private onConfirm: () => Promise<void>;
 
 	constructor(app: App, preview: ChangePreview, onConfirm: () => Promise<void>) {
 		super(app);
@@ -233,7 +233,7 @@ class ConfirmModal extends Modal {
 		confirmBtn.addEventListener('click', () => {
 			this.close();
 			if (filesToProcess > 0 || filesToDelete > 0) {
-				this.onConfirm();
+				void this.onConfirm();
 			}
 		});
 	}
