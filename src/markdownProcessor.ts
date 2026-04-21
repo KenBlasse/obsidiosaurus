@@ -1,6 +1,5 @@
 import * as readline from 'readline';
 import * as stream from 'stream'
-import { logger } from 'main';
 import { Admonition, Asset, Size } from "./types";
 import { config } from 'config';
 
@@ -39,7 +38,7 @@ export default async function processMarkdown(processedFileName: string, sourceC
         const withoutInlineComments = line.replace(/%%.*?%%/g, '').trimEnd();
         if (withoutInlineComments === '' && line.includes('%%')) continue;
 
-        let processedLine = await convertObsidianLinks(withoutInlineComments);
+        let processedLine = convertObsidianLinks(withoutInlineComments);
         processedLine = checkForAssets(processedLine, processedFileName, assetJson);
         processedLine = checkForLinks(processedLine);
         processedLine = convertHighlighting(processedLine);
@@ -53,7 +52,7 @@ export default async function processMarkdown(processedFileName: string, sourceC
     return transformedContent;
 }
 
-async function convertObsidianLinks(line: string) {
+function convertObsidianLinks(line: string): string {
 
     const pattern = new RegExp(`!\\[\\[(${config.docusaurusAssetSubfolderName}/.*?)\\]\\]`);
     const match = line.match(pattern);
@@ -209,7 +208,7 @@ function removeBlogSuffix(mainFolder: string): string {
 
 function removeNumberPrefix(str: string): string {
     // Removes all common numbering styles: 1), 1., 1 -, ...
-    return str.replace(/^\d+[\.\-\)\s%20]*\s*/, "").trim();
+    return str.replace(/^\d+[.\-)\s%20]*\s*/, "").trim();
 }
 
 function getOrCreateSize(sizes: Size[], size: string, processedFileName: string): Size {
@@ -231,11 +230,8 @@ function checkForAssets(line: string, processedFileName: string, assetJson: Asse
     const match = line.match(/!\[(?:\|(?<size>\d+(x\d+)?))?\]\((?<path>.*?)\)/);
 
     if (match && match.groups) {
-        // eslint-disable-next-line prefer-const
         let { size, path } = match.groups;
-        const fileNameWithExtension = path.split('/').pop();
-        // eslint-disable-next-line prefer-const
-        //@ts-ignore
+        const fileNameWithExtension = path.split('/').pop() ?? '';
         let [fileName, fileExtension] = fileNameWithExtension.split('.');
         fileName = fileName.replace(/ /g, "_");
         fileName = fileName.replace(/%20/g, "_");

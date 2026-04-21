@@ -94,11 +94,11 @@ class SettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h1', { text: 'Directories' });
+		new Setting(containerEl).setName('Directories').setHeading();
 
 		new Setting(containerEl)
-			.setName('Docusaurus Directory')
-			.setDesc('Path to your docusaurus instance')
+			.setName('Docusaurus directory')
+			.setDesc('Path to your Docusaurus instance')
 			.addText(text => text
 				.setPlaceholder('Enter paths')
 				.setValue(this.plugin.settings.docusaurusWebsiteDirectory)
@@ -107,11 +107,11 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('h1', { text: 'Assets' });
+		new Setting(containerEl).setName('Assets').setHeading();
 
 		new Setting(containerEl)
-			.setName('Obsidian Asset Folder')
-			.setDesc('Name of Obsidian Asset Folder')
+			.setName('Obsidian asset folder')
+			.setDesc('Name of the Obsidian asset folder')
 			.addText(text => text
 				.setPlaceholder('Enter folders')
 				.setValue(this.plugin.settings.obsidianAssetSubfolderName)
@@ -120,8 +120,8 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
-			.setName('Docusaurus Asset Folder')
-			.setDesc('Name of Docusaurus Asset Folder')
+			.setName('Docusaurus asset folder')
+			.setDesc('Name of the Docusaurus asset folder')
 			.addText(text => text
 				.setPlaceholder('Enter folders')
 				.setValue(this.plugin.settings.docusaurusAssetSubfolderName)
@@ -130,7 +130,7 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
-			.setName('Image Type')
+			.setName('Image type')
 			.setDesc('Format in which to convert all images')
 			.addDropdown(dropdown => dropdown
 				.addOptions({
@@ -142,7 +142,7 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
-			.setName('Image Width')
+			.setName('Image width')
 			.setDesc('Set the max width for the images in [px]')
 			.addText(number => number
 				.setPlaceholder('2500')
@@ -152,10 +152,10 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('h1', { text: 'Language' });
+		new Setting(containerEl).setName('Language').setHeading();
 
 		new Setting(containerEl)
-			.setName('Main Language')
+			.setName('Main language')
 			.setDesc('Your main language code to publish')
 			.addText(text => text
 				.setPlaceholder('Enter language code')
@@ -165,7 +165,7 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('h1', { text: 'Dev Options' });
+		new Setting(containerEl).setName('Dev options').setHeading();
 
 		new Setting(containerEl)
 			.setName('Debug mode')
@@ -173,7 +173,7 @@ class SettingTab extends PluginSettingTab {
 			.addToggle((value) => {
 				value.setValue(this.plugin.settings.debug).onChange((value) => {
 					this.plugin.settings.debug = value;
-					this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				});
 			});
 
@@ -183,7 +183,7 @@ class SettingTab extends PluginSettingTab {
 			.addToggle((value) => {
 				value.setValue(this.plugin.settings.debug).onChange((value) => {
 					this.plugin.settings.debug = value;
-					this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				});
 			});
 
@@ -196,7 +196,7 @@ class ConfirmModal extends Modal {
 	private preview: ChangePreview;
 	private onConfirm: () => void;
 
-	constructor(app: App, preview: ChangePreview, onConfirm: () => void) {
+	constructor(app: App, preview: ChangePreview, onConfirm: () => Promise<void>) {
 		super(app);
 		this.preview = preview;
 		this.onConfirm = onConfirm;

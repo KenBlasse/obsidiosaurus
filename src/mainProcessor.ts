@@ -7,7 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { getMainfolders, processSingleFolder } from './fileScanner';
 import { getSourceFileInfo } from './fileInfoBuilder';
-import { initializeJsonFile, writeJsonToFile, compareSource, getFilesToDelete, checkFilesExistence, deleteFiles, ensureDirectoryExistence, deleteParentDirectories } from './changeTracker';
+import { initializeJsonFile, writeJsonToFile, compareSource, getFilesToDelete, checkFilesExistence, deleteFiles, ensureDirectoryExistence } from './changeTracker';
 import { getAssetsToProcess, copyAssetFilesToTarget, removeAssetReferences, deleteUnusedFiles, clearFileFromAssetJson } from './assetProcessor';
 
 ////////////////////////////////////////////////////////////////
@@ -87,7 +87,7 @@ export default async function obsidiosaurusProcess(
 	let targetJson: SourceFileInfo[] = await initializeJsonFile(
 		path.join(basePath, "allFilesInfo.json")
 	);
-	let assetJson = await initializeJsonFile(
+	let assetJson: Asset[] = await initializeJsonFile<Asset>(
 		path.join(basePath, "assetInfo.json")
 	);
 
@@ -157,7 +157,7 @@ export default async function obsidiosaurusProcess(
 	}
 
 	// Delete unused markdown files from Docusaurus
-	deleteUnusedFiles(targetJson, websitePath);
+	await deleteUnusedFiles(targetJson, websitePath);
 
 	logger.info("✅ Obsidiosaurus run successfully");
 	new Notice("✅ Obsidiosaurus run successfully");

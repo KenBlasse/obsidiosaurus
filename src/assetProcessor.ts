@@ -113,10 +113,10 @@ async function removeAssetFromTarget(
 // Asset Processing
 ////////////////////////////////////////////////////////////////
 
-export async function getAssetsToProcess(
+export function getAssetsToProcess(
 	assetJson: Asset[],
 	websitePath: string
-): Promise<{ assetIndex: number; sizeIndex: number; path: string }[]> {
+): { assetIndex: number; sizeIndex: number; path: string }[] {
 	const documents = [];
 
 	// Loop through all assets
@@ -214,7 +214,7 @@ export async function copyAssetFilesToTarget(
 						size.size === "standard" &&
 						asset.fileExtension === "gif"
 					) {
-						await fs.copyFileSync(originalFilePath, newFilePath);
+						fs.copyFileSync(originalFilePath, newFilePath);
 						if (config.debug) {
 							logger.info(
 								`Image copied from ${originalFilePath} to ${newFilePath}`
@@ -268,7 +268,7 @@ export async function copyAssetFilesToTarget(
 // Unused File Cleanup
 ////////////////////////////////////////////////////////////////
 
-export function deleteUnusedFiles(json: SourceFileInfo[], websitePath: string) {
+export async function deleteUnusedFiles(json: SourceFileInfo[], websitePath: string): Promise<void> {
 	const targetDirectories = ["blog", "i18n", "docs"];
 	const blogSuffix = "__blog";
 
@@ -306,15 +306,15 @@ export function deleteUnusedFiles(json: SourceFileInfo[], websitePath: string) {
 	});
 
 	// Iterate through filesFound and check against the json
-	filesFound.forEach(async (file) => {
+	for (const file of filesFound) {
 		const fileIsUsed = json.some((j) => j.pathTargetAbsolute === file);
 
 		// Delete the file if it's not used
 		if (!fileIsUsed) {
 			await fs.promises.unlink(file);
-			console.log(`Deleted unused file: ${file}`);
+			logger.debug(`Deleted unused file: ${file}`);
 		}
-	});
+	}
 }
 
 ////////////////////////////////////////////////////////////////
@@ -365,20 +365,6 @@ async function resizeImage(
 	);
 	const buffer = Buffer.from(await resultBlob.arrayBuffer());
 	await fs.promises.writeFile(newFilePath, buffer);
-}
-
-async function getImageWidth(imagePath: string): Promise<number> {
-	const imageBuffer = await fs.promises.readFile(imagePath);
-	const blob = new Blob([imageBuffer]);
-	const url = URL.createObjectURL(blob);
-	const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-		const el = new Image();
-		el.onload = () => resolve(el);
-		el.onerror = reject;
-		el.src = url;
-	});
-	URL.revokeObjectURL(url);
-	return img.naturalWidth || 2500;
 }
 
 async function copySVG(originalFilePath: string, newFilePath: string) {

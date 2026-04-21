@@ -3,11 +3,11 @@ import * as path from 'path';
 import { logger } from 'main';
 import { SourceFileInfo, FilesToProcess } from './types';
 
-export async function initializeJsonFile(filePath: string, defaultContent: string = '[]'): Promise<any[]> {
+export async function initializeJsonFile<T>(filePath: string, defaultContent: string = '[]'): Promise<T[]> {
   try {
-    return JSON.parse(await fs.promises.readFile(filePath, 'utf-8'));
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+    return JSON.parse(await fs.promises.readFile(filePath, 'utf-8')) as T[];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       await fs.promises.writeFile(filePath, defaultContent);
     } else {
       console.error(`Error reading file: ${filePath}`, error);
@@ -16,15 +16,15 @@ export async function initializeJsonFile(filePath: string, defaultContent: strin
   }
 }
 
-export async function writeJsonToFile(filePath: string, content: any): Promise<any> {
+export async function writeJsonToFile<T>(filePath: string, content: T): Promise<T> {
   await fs.promises.writeFile(filePath, JSON.stringify(content, null, 2));
-  return JSON.parse(await fs.promises.readFile(filePath, 'utf-8'));
+  return JSON.parse(await fs.promises.readFile(filePath, 'utf-8')) as T;
 }
 
-export async function compareSource(
+export function compareSource(
   sourceJson: Partial<SourceFileInfo>[],
   targetJson: Partial<SourceFileInfo>[]
-): Promise<FilesToProcess[]> {
+): FilesToProcess[] {
   const filesToProcess: FilesToProcess[] = [];
 
   sourceJson.forEach((sourceFile, i) => {
@@ -39,10 +39,10 @@ export async function compareSource(
   return filesToProcess;
 }
 
-export async function getFilesToDelete(
+export function getFilesToDelete(
   allSourceFilesInfo: Partial<SourceFileInfo>[],
   targetJson: SourceFileInfo[]
-): Promise<FilesToProcess[]> {
+): FilesToProcess[] {
   const filesToDelete: FilesToProcess[] = [];
 
   targetJson.forEach((targetFile, i) => {
@@ -62,7 +62,7 @@ export async function getFilesToDelete(
     } else if (sourceDate && targetDate.getTime() < sourceDate.getTime()) {
       filesToDelete.push({
         index: i,
-        reason: `its last modification date ${targetDate} is older than the date in sourceJson ${sourceDate}`,
+        reason: `its last modification date ${targetDate.toISOString()} is older than the date in sourceJson ${sourceDate.toISOString()}`,
         pathKey: targetFile.pathSourceRelative,
       });
     }
@@ -80,8 +80,8 @@ export async function checkFilesExistence(targetJson: SourceFileInfo[]): Promise
         fileInfo.dateModifiedTarget = stats.mtime;
         fileInfo.sizeTarget = stats.size;
         return fileInfo;
-      } catch (err: any) {
-        if (err.code !== 'ENOENT') throw err;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
         return null;
       }
     })
@@ -102,8 +102,8 @@ export async function deleteFiles(
       await fs.promises.unlink(targetFile.pathTargetAbsolute);
       await deleteParentDirectories(targetFile.pathTargetAbsolute);
       targetJson.splice(fileToDelete.index, 1);
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         logger.error(`Failed to delete file ${targetFile.pathTargetRelative}: ${error}`);
         continue;
       }
@@ -124,8 +124,9 @@ export async function deleteParentDirectories(filepath: string): Promise<void> {
   while (dirPath !== path.dirname(dirPath)) {
     try {
       await fs.promises.rmdir(dirPath);
-    } catch (error: any) {
-      if (error.code !== 'ENOTEMPTY' && error.code !== 'EEXIST' && error.code !== 'EPERM') {
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== 'ENOTEMPTY' && err.code !== 'EEXIST' && err.code !== 'EPERM') {
         logger.error(`Failed to delete directory ${dirPath}: ${error}`);
       }
       return;
