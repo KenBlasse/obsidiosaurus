@@ -2,7 +2,36 @@ import { App, Modal, Plugin, PluginSettingTab, Setting, Notice, FileSystemAdapte
 import obsidiosaurusProcess, { previewChanges, ChangePreview } from 'src/mainProcessor'
 import { Config } from 'src/types'
 import path from 'path';
+import * as fs from 'fs';
 import { setSettings } from 'config';
+
+const STATUS_DIR = '.obsidiosaurus';
+const STATUS_FILE = 'last-run.json';
+
+type BuildStatus = 'running' | 'success' | 'error';
+
+interface LastRunStatus {
+	status: BuildStatus;
+	startedAt: string;
+	finishedAt?: string;
+	filesToProcess?: number;
+	filesToDelete?: number;
+	error?: { message: string; stack?: string };
+	version: string;
+}
+
+async function writeStatus(vaultPath: string, status: LastRunStatus): Promise<void> {
+	try {
+		const dir = path.join(vaultPath, STATUS_DIR);
+		await fs.promises.mkdir(dir, { recursive: true });
+		await fs.promises.writeFile(
+			path.join(dir, STATUS_FILE),
+			JSON.stringify(status, null, 2),
+		);
+	} catch (err) {
+		logger.error(`Failed to write obsidiosaurus status file: ${err}`);
+	}
+}
 
 export const logger = console;
 
@@ -27,40 +56,92 @@ export default class Obsidisaurus extends Plugin {
 			logger.info("🟢 Obsidiosaurus Plugin loaded");
 		}
 
-		const ribbonIconEl = this.addRibbonIcon('file-up', 'Obsidiosaurus', async (evt: MouseEvent) => {
-			try {
-				if (!(this.app.vault.adapter instanceof FileSystemAdapter)) return;
-				const vaultPath = this.app.vault.adapter.getBasePath();
-				const basePath = path.dirname(vaultPath);
-
-				const preview = await previewChanges(basePath, vaultPath);
-
-				new ConfirmModal(this.app, preview, async () => {
-					try {
-						logger.info("Obsidiosaurus started");
-						new Notice("Obsidiosaurus started");
-						await obsidiosaurusProcess(basePath, vaultPath);
-					} catch (error) {
-						if (this.settings.debug) {
-							const errorMessage = `Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
-							logger.error(errorMessage);
-							new Notice(`Obsidiosaurus crashed. ${errorMessage}`);
-						} else {
-							logger.error(`Obsidiosaurus crashed with error message: \n${error} `);
-							new Notice("Obsidiosaurus crashed. Check log files for more info");
-						}
-					}
-				}).open();
-			} catch (error) {
-				logger.error(`Obsidiosaurus preview failed: \n${error}`);
-				new Notice("Could not calculate changes. Check log files for more info");
-			}
+		const ribbonIconEl = this.addRibbonIcon('file-up', 'Obsidiosaurus', async () => {
+			await this.runBuild({ skipConfirm: false });
 		});
 
 		ribbonIconEl.addClass('my-plugin-ribbon-class');
 
+		this.addCommand({
+			id: 'run',
+			name: 'Run Obsidiosaurus',
+			callback: async () => {
+				await this.runBuild({ skipConfirm: true });
+			},
+		});
+
+		this.addCommand({
+			id: 'run-with-confirm',
+			name: 'Run Obsidiosaurus (preview changes first)',
+			callback: async () => {
+				await this.runBuild({ skipConfirm: false });
+			},
+		});
+
 		this.addSettingTab(new SettingTab(this.app, this));
 
+	}
+
+	private async runBuild({ skipConfirm }: { skipConfirm: boolean }): Promise<void> {
+		try {
+			if (!(this.app.vault.adapter instanceof FileSystemAdapter)) return;
+			const vaultPath = this.app.vault.adapter.getBasePath();
+			const basePath = path.dirname(vaultPath);
+
+			const executeBuild = async (preview?: ChangePreview) => {
+				const startedAt = new Date().toISOString();
+				await writeStatus(vaultPath, {
+					status: 'running',
+					startedAt,
+					filesToProcess: preview?.filesToProcess,
+					filesToDelete: preview?.filesToDelete,
+					version: this.manifest.version,
+				});
+				try {
+					logger.info("Obsidiosaurus started");
+					new Notice("Obsidiosaurus started");
+					await obsidiosaurusProcess(basePath, vaultPath);
+					await writeStatus(vaultPath, {
+						status: 'success',
+						startedAt,
+						finishedAt: new Date().toISOString(),
+						filesToProcess: preview?.filesToProcess,
+						filesToDelete: preview?.filesToDelete,
+						version: this.manifest.version,
+					});
+				} catch (error) {
+					if (this.settings.debug) {
+						const errorMessage = `Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
+						logger.error(errorMessage);
+						new Notice(`Obsidiosaurus crashed. ${errorMessage}`);
+					} else {
+						logger.error(`Obsidiosaurus crashed with error message: \n${error} `);
+						new Notice("Obsidiosaurus crashed. Check log files for more info");
+					}
+					await writeStatus(vaultPath, {
+						status: 'error',
+						startedAt,
+						finishedAt: new Date().toISOString(),
+						filesToProcess: preview?.filesToProcess,
+						filesToDelete: preview?.filesToDelete,
+						error: { message: String(error?.message ?? error), stack: error?.stack },
+						version: this.manifest.version,
+					});
+				}
+			};
+
+			const preview = await previewChanges(basePath, vaultPath);
+
+			if (skipConfirm) {
+				await executeBuild(preview);
+				return;
+			}
+
+			new ConfirmModal(this.app, preview, () => executeBuild(preview)).open();
+		} catch (error) {
+			logger.error(`Obsidiosaurus preview failed: \n${error}`);
+			new Notice("Could not calculate changes. Check log files for more info");
+		}
 	}
 
 	onunload() {

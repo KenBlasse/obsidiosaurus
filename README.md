@@ -109,6 +109,47 @@ New documentation: [https://kenblasse.github.io/obsidiosaurus-docs/](https://ken
 -   Docusaurus Tabs: ❌ (not supported in Obsidian)
 -   MDX Support: ❌ (not supported in Obsidian)
 
+# 🤖 AI Agent / Automation
+
+Obsidiosaurus exposes two Obsidian commands that can be triggered by AI agents or external automation via the [Local REST API plugin](https://github.com/coddingtonbear/obsidian-local-rest-api):
+
+| Command ID | Behavior |
+|---|---|
+| `obsidiosaurus:run` | Runs the conversion **without** the confirmation modal — intended for unattended/agent use. |
+| `obsidiosaurus:run-with-confirm` | Shows the preview modal and waits for user click — same as the ribbon icon. |
+
+After every run (or attempt) the plugin writes a status file to `.obsidiosaurus/last-run.json` inside the vault, so the agent can poll for completion and check for errors.
+
+**Example agent workflow:**
+
+```bash
+API_KEY="<your local-rest-api key>"
+
+# 1. Trigger the build (returns immediately)
+curl -sk -X POST -H "Authorization: Bearer $API_KEY" \
+  https://localhost:27124/commands/obsidiosaurus:run/
+
+# 2. Poll status until done
+curl -sk -H "Authorization: Bearer $API_KEY" \
+  https://localhost:27124/vault/.obsidiosaurus/last-run.json
+```
+
+**Status file schema:**
+
+```json
+{
+  "status": "running" | "success" | "error",
+  "startedAt": "2026-05-16T11:52:20.051Z",
+  "finishedAt": "2026-05-16T11:52:20.064Z",
+  "filesToProcess": 1,
+  "filesToDelete": 1,
+  "error": { "message": "...", "stack": "..." },
+  "version": "1.2.0"
+}
+```
+
+Counts (`filesToProcess`, `filesToDelete`) reflect the change-preview snapshot taken before the run, not necessarily the exact number of files written.
+
 # 💭 Need help?
 
 Open an [issue on GitHub](https://github.com/KenBlasse/obsidiosaurus/issues).
