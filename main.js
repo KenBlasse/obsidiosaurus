@@ -928,7 +928,7 @@ async function obsidiosaurusProcess(basePath, vaultPath) {
 }
 async function copyMarkdownFilesToTarget(files, basePath, targetJson, assetJson) {
   const results = [];
-  const promises4 = files.map(async (file) => {
+  const promises5 = files.map(async (file) => {
     const { pathTargetAbsolute, pathSourceAbsolute, pathSourceRelative } = file;
     if (pathTargetAbsolute && pathSourceAbsolute && pathSourceRelative) {
       await ensureDirectoryExistence(pathTargetAbsolute);
@@ -956,7 +956,7 @@ async function copyMarkdownFilesToTarget(files, basePath, targetJson, assetJson)
     }
     results.push(file);
   });
-  await Promise.all(promises4);
+  await Promise.all(promises5);
   targetJson.push(...results);
   await fs5.promises.writeFile(
     path5.join(basePath, "assetInfo.json"),
@@ -966,6 +966,21 @@ async function copyMarkdownFilesToTarget(files, basePath, targetJson, assetJson)
 
 // main.ts
 var import_path = __toESM(require("path"));
+var fs6 = __toESM(require("fs"));
+var STATUS_DIR = ".obsidiosaurus";
+var STATUS_FILE = "last-run.json";
+async function writeStatus(vaultPath, status) {
+  try {
+    const dir = import_path.default.join(vaultPath, STATUS_DIR);
+    await fs6.promises.mkdir(dir, { recursive: true });
+    await fs6.promises.writeFile(
+      import_path.default.join(dir, STATUS_FILE),
+      JSON.stringify(status, null, 2)
+    );
+  } catch (err) {
+    logger.error(`Failed to write obsidiosaurus status file: ${err}`);
+  }
+}
 var logger = console;
 var config2 = {
   obsidianVaultDirectory: "./vault",
@@ -984,38 +999,86 @@ var Obsidisaurus = class extends import_obsidian2.Plugin {
     if (this.settings.debug) {
       logger.info("\u{1F7E2} Obsidiosaurus Plugin loaded");
     }
-    const ribbonIconEl = this.addRibbonIcon("file-up", "Obsidiosaurus", async (evt) => {
-      try {
-        if (!(this.app.vault.adapter instanceof import_obsidian2.FileSystemAdapter)) return;
-        const vaultPath = this.app.vault.adapter.getBasePath();
-        const basePath = import_path.default.dirname(vaultPath);
-        const preview = await previewChanges(basePath, vaultPath);
-        new ConfirmModal(this.app, preview, async () => {
-          try {
-            logger.info("Obsidiosaurus started");
-            new import_obsidian2.Notice("Obsidiosaurus started");
-            await obsidiosaurusProcess(basePath, vaultPath);
-          } catch (error) {
-            if (this.settings.debug) {
-              const errorMessage = `Obsidiosaurus crashed in function with the following error:
-${error.stack}`;
-              logger.error(errorMessage);
-              new import_obsidian2.Notice(`Obsidiosaurus crashed. ${errorMessage}`);
-            } else {
-              logger.error(`Obsidiosaurus crashed with error message: 
-${error} `);
-              new import_obsidian2.Notice("Obsidiosaurus crashed. Check log files for more info");
-            }
-          }
-        }).open();
-      } catch (error) {
-        logger.error(`Obsidiosaurus preview failed: 
-${error}`);
-        new import_obsidian2.Notice("Could not calculate changes. Check log files for more info");
-      }
+    const ribbonIconEl = this.addRibbonIcon("file-up", "Obsidiosaurus", async () => {
+      await this.runBuild({ skipConfirm: false });
     });
     ribbonIconEl.addClass("my-plugin-ribbon-class");
+    this.addCommand({
+      id: "run",
+      name: "Run Obsidiosaurus",
+      callback: async () => {
+        await this.runBuild({ skipConfirm: true });
+      }
+    });
+    this.addCommand({
+      id: "run-with-confirm",
+      name: "Run Obsidiosaurus (preview changes first)",
+      callback: async () => {
+        await this.runBuild({ skipConfirm: false });
+      }
+    });
     this.addSettingTab(new SettingTab(this.app, this));
+  }
+  async runBuild({ skipConfirm }) {
+    try {
+      if (!(this.app.vault.adapter instanceof import_obsidian2.FileSystemAdapter)) return;
+      const vaultPath = this.app.vault.adapter.getBasePath();
+      const basePath = import_path.default.dirname(vaultPath);
+      const executeBuild = async (preview2) => {
+        var _a;
+        const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+        await writeStatus(vaultPath, {
+          status: "running",
+          startedAt,
+          filesToProcess: preview2 == null ? void 0 : preview2.filesToProcess,
+          filesToDelete: preview2 == null ? void 0 : preview2.filesToDelete,
+          version: this.manifest.version
+        });
+        try {
+          logger.info("Obsidiosaurus started");
+          new import_obsidian2.Notice("Obsidiosaurus started");
+          await obsidiosaurusProcess(basePath, vaultPath);
+          await writeStatus(vaultPath, {
+            status: "success",
+            startedAt,
+            finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            filesToProcess: preview2 == null ? void 0 : preview2.filesToProcess,
+            filesToDelete: preview2 == null ? void 0 : preview2.filesToDelete,
+            version: this.manifest.version
+          });
+        } catch (error) {
+          if (this.settings.debug) {
+            const errorMessage = `Obsidiosaurus crashed in function with the following error:
+${error.stack}`;
+            logger.error(errorMessage);
+            new import_obsidian2.Notice(`Obsidiosaurus crashed. ${errorMessage}`);
+          } else {
+            logger.error(`Obsidiosaurus crashed with error message: 
+${error} `);
+            new import_obsidian2.Notice("Obsidiosaurus crashed. Check log files for more info");
+          }
+          await writeStatus(vaultPath, {
+            status: "error",
+            startedAt,
+            finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            filesToProcess: preview2 == null ? void 0 : preview2.filesToProcess,
+            filesToDelete: preview2 == null ? void 0 : preview2.filesToDelete,
+            error: { message: String((_a = error == null ? void 0 : error.message) != null ? _a : error), stack: error == null ? void 0 : error.stack },
+            version: this.manifest.version
+          });
+        }
+      };
+      const preview = await previewChanges(basePath, vaultPath);
+      if (skipConfirm) {
+        await executeBuild(preview);
+        return;
+      }
+      new ConfirmModal(this.app, preview, () => executeBuild(preview)).open();
+    } catch (error) {
+      logger.error(`Obsidiosaurus preview failed: 
+${error}`);
+      new import_obsidian2.Notice("Could not calculate changes. Check log files for more info");
+    }
   }
   onunload() {
     if (config2.debug) {
