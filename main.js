@@ -637,17 +637,17 @@ function getAssetsToProcess(assetJson, websitePath) {
       }
     }
   }
-  const assetsToProcess = documents.filter((document2) => {
+  const assetsToProcess = documents.filter((document) => {
     const fileExists = fs4.existsSync(
       path4.join(
         websitePath,
         "static",
         config.docusaurusAssetSubfolderName,
-        document2.path
+        document.path
       )
     );
     if (!fileExists && config.debug) {
-      logger.info(`File ${document2.path} does not exist.`);
+      logger.info(`File ${document.path} does not exist.`);
     }
     return !fileExists;
   });
@@ -718,7 +718,7 @@ async function copyAssetFilesToTarget(vaultPathPath, websitePath, assetJson, ass
         } catch (error) {
           if (config.debug) {
             logger.info(
-              `Failed to resize image and copy from ${originalFilePath} to ${newFilePath}: ${error.message}`
+              `Failed to resize image and copy from ${originalFilePath} to ${newFilePath}: ${String(error)}`
             );
           }
         }
@@ -737,7 +737,7 @@ async function copyAssetFilesToTarget(vaultPathPath, websitePath, assetJson, ass
         } catch (error) {
           if (config.debug) {
             logger.error(
-              `Failed to copy file from ${originalFilePath} to ${newFilePath}: ${error.message}`
+              `Failed to copy file from ${originalFilePath} to ${newFilePath}: ${String(error)}`
             );
           }
         }
@@ -804,7 +804,7 @@ async function resizeImage(originalFilePath, newFilePath, size) {
     width = parseInt(dimensions[0]);
     height = dimensions.length > 1 ? parseInt(dimensions[1]) : Math.round(img.naturalHeight * (width / img.naturalWidth));
   }
-  const canvas = document.createElement("canvas");
+  const canvas = createEl("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
@@ -982,6 +982,9 @@ async function writeStatus(vaultPath, status) {
   }
 }
 var logger = console;
+function toError(error) {
+  return error instanceof Error ? error : new Error(String(error));
+}
 var config2 = {
   obsidianVaultDirectory: "./vault",
   docusaurusWebsiteDirectory: "./website",
@@ -1005,14 +1008,14 @@ var Obsidisaurus = class extends import_obsidian2.Plugin {
     ribbonIconEl.addClass("my-plugin-ribbon-class");
     this.addCommand({
       id: "run",
-      name: "Run Obsidiosaurus",
+      name: "Run",
       callback: async () => {
         await this.runBuild({ skipConfirm: true });
       }
     });
     this.addCommand({
       id: "run-with-confirm",
-      name: "Run Obsidiosaurus (preview changes first)",
+      name: "Run (preview changes first)",
       callback: async () => {
         await this.runBuild({ skipConfirm: false });
       }
@@ -1025,7 +1028,6 @@ var Obsidisaurus = class extends import_obsidian2.Plugin {
       const vaultPath = this.app.vault.adapter.getBasePath();
       const basePath = import_path.default.dirname(vaultPath);
       const executeBuild = async (preview2) => {
-        var _a;
         const startedAt = (/* @__PURE__ */ new Date()).toISOString();
         await writeStatus(vaultPath, {
           status: "running",
@@ -1047,14 +1049,15 @@ var Obsidisaurus = class extends import_obsidian2.Plugin {
             version: this.manifest.version
           });
         } catch (error) {
+          const err = toError(error);
           if (this.settings.debug) {
             const errorMessage = `Obsidiosaurus crashed in function with the following error:
-${error.stack}`;
+${err.stack}`;
             logger.error(errorMessage);
             new import_obsidian2.Notice(`Obsidiosaurus crashed. ${errorMessage}`);
           } else {
             logger.error(`Obsidiosaurus crashed with error message: 
-${error} `);
+${err.message} `);
             new import_obsidian2.Notice("Obsidiosaurus crashed. Check log files for more info");
           }
           await writeStatus(vaultPath, {
@@ -1063,7 +1066,7 @@ ${error} `);
             finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
             filesToProcess: preview2 == null ? void 0 : preview2.filesToProcess,
             filesToDelete: preview2 == null ? void 0 : preview2.filesToDelete,
-            error: { message: String((_a = error == null ? void 0 : error.message) != null ? _a : error), stack: error == null ? void 0 : error.stack },
+            error: { message: err.message, stack: err.stack },
             version: this.manifest.version
           });
         }
@@ -1086,17 +1089,70 @@ ${error}`);
     }
   }
   async loadSettings() {
-    this.settings = Object.assign({}, config2, await this.loadData());
+    const loaded = await this.loadData();
+    this.settings = Object.assign({}, config2, loaded);
     setSettings(this.settings);
   }
   async saveSettings() {
     await this.saveData(this.settings);
+    setSettings(this.settings);
   }
 };
 var SettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+  // Declarative settings API (Obsidian 1.13+). Obsidian reads and persists the
+  // bound `key`s itself; the definitions also feed the global settings search.
+  // `display()` below remains as a fallback for older Obsidian versions.
+  getSettingDefinitions() {
+    return [
+      { name: "Directories", type: "heading" },
+      {
+        name: "Docusaurus directory",
+        desc: "Path to your Docusaurus instance",
+        control: { type: "text", key: "docusaurusWebsiteDirectory", placeholder: "Enter paths" }
+      },
+      { name: "Assets", type: "heading" },
+      {
+        name: "Obsidian asset folder",
+        desc: "Name of the Obsidian asset folder",
+        control: { type: "text", key: "obsidianAssetSubfolderName", placeholder: "Enter folders" }
+      },
+      {
+        name: "Docusaurus asset folder",
+        desc: "Name of the Docusaurus asset folder",
+        control: { type: "text", key: "docusaurusAssetSubfolderName", placeholder: "Enter folders" }
+      },
+      {
+        name: "Image type",
+        desc: "Format in which to convert all images",
+        control: { type: "dropdown", key: "convertedImageType", options: { webp: "WebP" } }
+      },
+      {
+        name: "Image width",
+        desc: "Set the max width for the images in [px]",
+        control: { type: "text", key: "convertedImageMaxWidth", placeholder: "2500" }
+      },
+      { name: "Language", type: "heading" },
+      {
+        name: "Main language",
+        desc: "Your main language code to publish",
+        control: { type: "text", key: "mainLanguage", placeholder: "Enter language code" }
+      },
+      { name: "Developer", type: "heading" },
+      {
+        name: "Debug mode",
+        desc: "Better logging for debugging",
+        control: { type: "toggle", key: "debug" }
+      },
+      {
+        name: "Developer mode",
+        desc: "Only for plugin developers",
+        control: { type: "toggle", key: "developer" }
+      }
+    ];
   }
   display() {
     const { containerEl } = this;
@@ -1138,8 +1194,8 @@ var SettingTab = class extends import_obsidian2.PluginSettingTab {
       });
     });
     new import_obsidian2.Setting(containerEl).setName("Developer mode").setDesc("Only for plugin developers").addToggle((value) => {
-      value.setValue(this.plugin.settings.debug).onChange((value2) => {
-        this.plugin.settings.debug = value2;
+      value.setValue(this.plugin.settings.developer).onChange((value2) => {
+        this.plugin.settings.developer = value2;
         void this.plugin.saveSettings();
       });
     });

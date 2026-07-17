@@ -24,5 +24,6 @@ data.json
 # Pycache
 .pyc
 __pycache__
-.historycoverage/
+.history
+coverage/
 docs/

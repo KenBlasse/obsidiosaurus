@@ -2,6 +2,7 @@ import obsidianmd from "eslint-plugin-obsidianmd";
 import tsparser from "@typescript-eslint/parser";
 
 export default [
+	{ ignores: ["node_modules/**", "main.js"] },
 	...obsidianmd.configs.recommended,
 	{
 		files: ["**/*.ts"],
@@ -13,7 +14,7 @@ export default [
 			"obsidianmd/ui/sentence-case": [
 				"error",
 				{
-					brands: ["Docusaurus", "Obsidiosaurus"],
+					brands: ["Docusaurus", "Obsidiosaurus", "Obsidian", "WebP"],
 				},
 			],
 		},
