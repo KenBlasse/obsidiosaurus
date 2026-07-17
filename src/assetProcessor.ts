@@ -235,7 +235,7 @@ export async function copyAssetFilesToTarget(
 				} catch (error) {
 					if (config.debug) {
 						logger.info(
-							`Failed to resize image and copy from ${originalFilePath} to ${newFilePath}: ${error.message}`
+							`Failed to resize image and copy from ${originalFilePath} to ${newFilePath}: ${String(error)}`
 						);
 					}
 				}
@@ -255,7 +255,7 @@ export async function copyAssetFilesToTarget(
 				} catch (error) {
 					if (config.debug) {
 						logger.error(
-							`Failed to copy file from ${originalFilePath} to ${newFilePath}: ${error.message}`
+							`Failed to copy file from ${originalFilePath} to ${newFilePath}: ${String(error)}`
 						);
 					}
 				}
@@ -353,7 +353,7 @@ async function resizeImage(
 			: Math.round(img.naturalHeight * (width / img.naturalWidth));
 	}
 
-	const canvas = document.createElement("canvas");
+	const canvas = createEl("canvas");
 	canvas.width = width;
 	canvas.height = height;
 	const ctx = canvas.getContext("2d");

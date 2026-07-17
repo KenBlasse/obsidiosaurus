@@ -35,6 +35,10 @@ async function writeStatus(vaultPath: string, status: LastRunStatus): Promise<vo
 
 export const logger = console;
 
+function toError(error: unknown): Error {
+	return error instanceof Error ? error : new Error(String(error));
+}
+
 export const config: Config = {
 	obsidianVaultDirectory: "./vault",
 	docusaurusWebsiteDirectory: "./website",
@@ -64,7 +68,7 @@ export default class Obsidisaurus extends Plugin {
 
 		this.addCommand({
 			id: 'run',
-			name: 'Run Obsidiosaurus',
+			name: 'Run',
 			callback: async () => {
 				await this.runBuild({ skipConfirm: true });
 			},
@@ -72,7 +76,7 @@ export default class Obsidisaurus extends Plugin {
 
 		this.addCommand({
 			id: 'run-with-confirm',
-			name: 'Run Obsidiosaurus (preview changes first)',
+			name: 'Run (preview changes first)',
 			callback: async () => {
 				await this.runBuild({ skipConfirm: false });
 			},
@@ -110,12 +114,13 @@ export default class Obsidisaurus extends Plugin {
 						version: this.manifest.version,
 					});
 				} catch (error) {
+					const err = toError(error);
 					if (this.settings.debug) {
-						const errorMessage = `Obsidiosaurus crashed in function with the following error:\n${error.stack}`;
+						const errorMessage = `Obsidiosaurus crashed in function with the following error:\n${err.stack}`;
 						logger.error(errorMessage);
 						new Notice(`Obsidiosaurus crashed. ${errorMessage}`);
 					} else {
-						logger.error(`Obsidiosaurus crashed with error message: \n${error} `);
+						logger.error(`Obsidiosaurus crashed with error message: \n${err.message} `);
 						new Notice("Obsidiosaurus crashed. Check log files for more info");
 					}
 					await writeStatus(vaultPath, {
@@ -124,7 +129,7 @@ export default class Obsidisaurus extends Plugin {
 						finishedAt: new Date().toISOString(),
 						filesToProcess: preview?.filesToProcess,
 						filesToDelete: preview?.filesToDelete,
-						error: { message: String(error?.message ?? error), stack: error?.stack },
+						error: { message: err.message, stack: err.stack },
 						version: this.manifest.version,
 					});
 				}
@@ -151,12 +156,16 @@ export default class Obsidisaurus extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, config, await this.loadData());
+		const loaded = (await this.loadData()) as Partial<Config> | null;
+		this.settings = Object.assign({}, config, loaded);
 		setSettings(this.settings);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		// Keep the shared `config` module in sync with runtime changes so the
+		// build reads current values without requiring a plugin reload.
+		setSettings(this.settings);
 	}
 
 }
@@ -168,6 +177,58 @@ class SettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: Obsidisaurus) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	// Declarative settings API (Obsidian 1.13+). Obsidian reads and persists the
+	// bound `key`s itself; the definitions also feed the global settings search.
+	// `display()` below remains as a fallback for older Obsidian versions.
+	getSettingDefinitions() {
+		return [
+			{ name: 'Directories', type: 'heading' },
+			{
+				name: 'Docusaurus directory',
+				desc: 'Path to your Docusaurus instance',
+				control: { type: 'text', key: 'docusaurusWebsiteDirectory', placeholder: 'Enter paths' },
+			},
+			{ name: 'Assets', type: 'heading' },
+			{
+				name: 'Obsidian asset folder',
+				desc: 'Name of the Obsidian asset folder',
+				control: { type: 'text', key: 'obsidianAssetSubfolderName', placeholder: 'Enter folders' },
+			},
+			{
+				name: 'Docusaurus asset folder',
+				desc: 'Name of the Docusaurus asset folder',
+				control: { type: 'text', key: 'docusaurusAssetSubfolderName', placeholder: 'Enter folders' },
+			},
+			{
+				name: 'Image type',
+				desc: 'Format in which to convert all images',
+				control: { type: 'dropdown', key: 'convertedImageType', options: { webp: 'WebP' } },
+			},
+			{
+				name: 'Image width',
+				desc: 'Set the max width for the images in [px]',
+				control: { type: 'text', key: 'convertedImageMaxWidth', placeholder: '2500' },
+			},
+			{ name: 'Language', type: 'heading' },
+			{
+				name: 'Main language',
+				desc: 'Your main language code to publish',
+				control: { type: 'text', key: 'mainLanguage', placeholder: 'Enter language code' },
+			},
+			{ name: 'Developer', type: 'heading' },
+			{
+				name: 'Debug mode',
+				desc: 'Better logging for debugging',
+				control: { type: 'toggle', key: 'debug' },
+			},
+			{
+				name: 'Developer mode',
+				desc: 'Only for plugin developers',
+				control: { type: 'toggle', key: 'developer' },
+			},
+		];
 	}
 
 	display(): void {
@@ -262,8 +323,8 @@ class SettingTab extends PluginSettingTab {
 			.setName('Developer mode')
 			.setDesc('Only for plugin developers')
 			.addToggle((value) => {
-				value.setValue(this.plugin.settings.debug).onChange((value) => {
-					this.plugin.settings.debug = value;
+				value.setValue(this.plugin.settings.developer).onChange((value) => {
+					this.plugin.settings.developer = value;
 					void this.plugin.saveSettings();
 				});
 			});

@@ -1,7 +1,8 @@
-<h1 align="center">
-  <a href=""><img width="124" src="/logo.svg" alt="Obsidiosaurus"></a><br>
-  Obsidiosaurus
-</h1>
+<p align="center">
+  <a href=""><img width="124" src="/logo.svg" alt="Obsidiosaurus"></a>
+</p>
+
+# Obsidiosaurus
 
 _<p align="center">Obsidian + Docusaurus = Where your Obsidian notes meet the web</p>_
 
